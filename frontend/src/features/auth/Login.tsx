@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../app/hook";
 import { login, logout } from "./authSlice";
-import { useNavigate } from "react-router"
+import { Link, useNavigate } from "react-router"
 
 interface LoginResponse {
   message: string;
@@ -121,11 +121,16 @@ const handleLogout = async () => {
         onChange={(event) => setPassword(event.target.value)}
       />
 
-      {error && <p>{error}</p>}
-
       <button type="submit" disabled={loading}>
         {loading ? "Logging in..." : "Login"}
       </button>
+
+      {error && <p>{error}</p>}
+
+      <p>
+  Don't have an account?{" "}
+  <Link to="/register">Create an account</Link>
+</p>
 
       <button
   type="button"
