@@ -1,8 +1,12 @@
 import type { Request, Response, NextFunction } from "express";
 import { jwtVerify } from "jose";
-import { getJwtSecret } from "../utils/jwt.js";
+import { getAccessTokenSecret } from "../utils/jwt.js";
 
-export const authMiddleware = async ( req: Request, res: Response, next: NextFunction ) => {
+export const authMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -20,7 +24,7 @@ export const authMiddleware = async ( req: Request, res: Response, next: NextFun
   }
 
   try {
-    const { payload } = await jwtVerify(token, getJwtSecret());
+    const { payload } = await jwtVerify(token, getAccessTokenSecret());
 
     if (typeof payload.sub !== "string") {
       return res.status(401).json({

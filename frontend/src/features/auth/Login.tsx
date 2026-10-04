@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../app/hook";
-import { login } from "./authSlice";
+import { login, logout } from "./authSlice";
 import { useNavigate } from "react-router"
 
 interface LoginResponse {
@@ -25,7 +25,7 @@ function Login() {
   const [error, setError] = useState("");
 
   const user = useAppSelector((state) => state.auth.user);
-  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const status = useAppSelector((state) => state.auth.status);
 
   const token = useAppSelector((state) => state.auth.token);
 
@@ -38,6 +38,7 @@ function Login() {
     try {
       const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -60,7 +61,7 @@ function Login() {
         }),
       );
 
-      navigate("/dashboard")
+      navigate("/dashboard", { replace: true })
 
       console.log("Login successful");
     } catch (error) {
@@ -90,6 +91,18 @@ function Login() {
   console.log(data)
 }
 
+const handleLogout = async () => {
+  try {
+    await fetch("http://localhost:5000/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    })
+  } finally {
+    dispatch(logout())
+    navigate("/login")
+  }
+}
+
   return (
     <form onSubmit={handleSubmit}>
       <h1>Login</h1>
@@ -117,16 +130,21 @@ function Login() {
       <button
   type="button"
   onClick={handleGetMe}
-  disabled={!isAuthenticated}
+  disabled={status !== "authenticated"}
 >
   Get My Profile
 </button>
 
-      {isAuthenticated && user && (
+      {status==='authenticated' && user && (
         <div>
           <p>Logged in as: {user.name}</p>
           <p>Email: {user.email}</p>
           <p>Role: {user.role}</p>
+
+          <button type="button" onClick={handleLogout}>
+      Logout
+    </button>
+
         </div>
       )}
     </form>
