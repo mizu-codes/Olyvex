@@ -3,6 +3,7 @@ import { connectDB } from "./config/db.js";
 import authRouter from "./routes/auth.routes.js";
 import cors from "cors";
 import cookieParser from "cookie-parser"
+import adminRoutes from "./routes/admin.routes.js"
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/admin", adminRoutes)
 
 const startServer = async () => {
   await connectDB();
