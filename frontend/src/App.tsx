@@ -7,6 +7,7 @@ import PublicRoute from "./components/PublicRoute";
 import { useEffect } from "react";
 import { useAppDispatch } from "./app/hook";
 import { restoreSession } from "./features/auth/authSlice";
+import Profile from "./features/profile/Profile";
 
 function App() {
   const dispatch = useAppDispatch();
@@ -24,6 +25,7 @@ function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<Profile />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
