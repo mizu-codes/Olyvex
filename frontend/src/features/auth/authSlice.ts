@@ -5,6 +5,7 @@ interface User {
   name: string;
   email: string;
   role: string;
+  profileImage?: string | null;
 }
 
 interface AuthState {
@@ -85,6 +86,10 @@ const authSlice = createSlice({
       state.token = null;
       state.status = "unauthenticated"
     },
+
+    updateUser(state, action: PayloadAction<User>) {
+  state.user = action.payload
+}
   },
 
   extraReducers: (builder) => {
@@ -105,6 +110,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { login, logout } = authSlice.actions;
+export const { login, logout, updateUser } = authSlice.actions;
 
 export default authSlice.reducer;
