@@ -7,6 +7,8 @@ interface IUser {
   role: "user" | "admin";
   profileImage?: string;
   profileImagePublicId?: string
+  createdAt?: Date
+  updatedAt?: Date
 }
 
 const userSchema = new Schema<IUser>(
