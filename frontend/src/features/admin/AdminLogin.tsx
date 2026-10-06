@@ -1,78 +1,73 @@
-import { useState } from "react"
-import { useNavigate } from "react-router"
-import { useAppDispatch } from "../../app/hook"
-import { loginAdmin } from "./adminAuthSlice"
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { useAppDispatch } from "../../app/hook";
+import { loginAdmin } from "./adminAuthSlice";
+import { api } from "../../api/client";
+import axios from "axios";
 
 interface AdminLoginResponse {
-  message: string
-  token: string
+  message: string;
+  token: string;
   user: {
-    id: string
-    name: string
-    email: string
-    role: "admin"
-    profileImage?: string | null
-  }
+    id: string;
+    name: string;
+    email: string;
+    role: "admin";
+    profileImage?: string | null;
+  };
 }
 
 function AdminLogin() {
-  const dispatch = useAppDispatch()
-  const navigate = useNavigate()
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
 
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e: React.SubmitEvent) => {
+    e.preventDefault();
 
     try {
-      setLoading(true)
-      setError("")
+      setLoading(true);
+      setError("");
 
-      const response = await fetch(
-        "http://localhost:5000/api/admin/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        }
-      )
+      const response = await api.post<AdminLoginResponse>("/api/admin/login", {
+        email,
+        password,
+      });
 
-      const data: AdminLoginResponse = await response.json()
-
-      if (!response.ok) {
-        setError(data.message)
-        return
-      }
+      const data = response.data;
 
       if (data.user.role !== "admin") {
-        setError("Admin access required")
-        return
+        setError("Admin access required");
+        return;
       }
 
       dispatch(
         loginAdmin({
           user: data.user,
           token: data.token,
-        })
-      )
+        }),
+      );
 
-      navigate("/admin/users", { replace: true })
+      navigate("/admin/users", { replace: true });
     } catch (error) {
-      console.error("Admin login failed:", error)
-      setError("Something went wrong. Please try again.")
+      console.error("Admin login failed:", error);
+
+      if (axios.isAxiosError(error)) {
+        setError(
+          error.response?.data?.message ??
+            "Something went wrong. Please try again.",
+        );
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <>
@@ -99,9 +94,8 @@ function AdminLogin() {
           {loading ? "Logging in..." : "Admin Login"}
         </button>
       </form>
-      
     </>
-  )
+  );
 }
 
-export default AdminLogin
+export default AdminLogin;

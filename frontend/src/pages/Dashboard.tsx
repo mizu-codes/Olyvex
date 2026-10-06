@@ -1,6 +1,7 @@
 import { logout } from "../features/auth/authSlice"
 import { useAppDispatch } from "../app/hook"
 import { useNavigate } from "react-router"
+import { api } from "../api/client"
 
 function Dashboard() {
 
@@ -9,10 +10,7 @@ function Dashboard() {
 
 const handleLogout = async () => {
   try {
-    await fetch("http://localhost:5000/api/auth/logout", {
-      method: "POST",
-      credentials: "include",
-    })
+    await api.post("/api/auth/logout")
   } finally {
     dispatch(logout())
     navigate("/login")

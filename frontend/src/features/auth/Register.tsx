@@ -1,3 +1,5 @@
+import axios from "axios";
+import { api } from "../../api/client";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 
@@ -30,23 +32,11 @@ function Register() {
     }
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-        }),
+      await api.post<{ message: string }>("/api/auth/register", {
+        name,
+        email,
+        password,
       });
-
-      const data: { message: string } = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message);
-      }
 
       setName("");
       setEmail("");
@@ -54,7 +44,11 @@ function Register() {
 
       navigate("/login", { replace: true });
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Something went wrong");
+      if (axios.isAxiosError(error)) {
+        setError(error.response?.data?.message ?? "Something went wrong");
+      } else {
+        setError("Something went wrong");
+      }
     } finally {
       setLoading(false);
     }
