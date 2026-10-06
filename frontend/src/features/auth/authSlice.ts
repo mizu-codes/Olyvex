@@ -1,4 +1,5 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { api } from "../../api/client";
 
 interface User {
   id: string;
@@ -33,42 +34,29 @@ interface RestoreSessionResponse {
 export const restoreSession = createAsyncThunk(
   "auth/restoreSession",
   async () => {
-    const refreshResponse = await fetch(
-      "http://localhost:5000/api/auth/refresh",
-      {
-        method: "POST",
-        credentials: "include",
-      }
-    )
+    const refreshResponse = await api.post<{ token: string }>(
+      "/api/auth/refresh"
+    );
 
-    if (!refreshResponse.ok) {
-      throw new Error("Session could not be restored")
-    }
+    const refreshData = refreshResponse.data;
 
-    const refreshData: { token: string } =
-      await refreshResponse.json()
-
-    const meResponse = await fetch(
-      "http://localhost:5000/api/auth/me",
+    const meResponse = await api.get<{ user: User }>(
+      "/api/auth/me",
       {
         headers: {
           Authorization: `Bearer ${refreshData.token}`,
         },
       }
-    )
+    );
 
-    if (!meResponse.ok) {
-      throw new Error("Could not fetch current user")
-    }
-
-    const meData: { user: User } = await meResponse.json()
+    const meData = meResponse.data;
 
     return {
       token: refreshData.token,
       user: meData.user,
-    } satisfies RestoreSessionResponse
+    } satisfies RestoreSessionResponse;
   }
-)
+);
 
 const authSlice = createSlice({
   name: "auth",

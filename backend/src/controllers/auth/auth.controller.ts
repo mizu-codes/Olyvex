@@ -83,6 +83,12 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
+    if (user.role !== "user") {
+  return res.status(403).json({
+    message: "Use admin login",
+  });
+}
+
     const accessToken = await generateAccessToken(
       user._id.toString(),
       user.role,
@@ -137,6 +143,12 @@ export const refresh = async ( req: Request, res: Response ) => {
         message: "User not found",
       })
     }
+
+    if (user.role !== "user") {
+  return res.status(403).json({
+    message: "Use admin login",
+  })
+}
 
     const accessToken = await generateAccessToken(
       user._id.toString(),

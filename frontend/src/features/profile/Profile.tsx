@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAppSelector, useAppDispatch } from "../../app/hook";
 import { updateUser } from "../auth/authSlice";
+import { api } from "../../api/client";
 
 function Profile() {
   const user = useAppSelector((state) => state.auth.user);
@@ -32,24 +33,20 @@ function Profile() {
       setLoading(true);
       setError("");
 
-      const response = await fetch("http://localhost:5000/api/auth/profile", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const response = await api.put(
+        "/api/auth/profile",
+        {
           name,
           email,
-        }),
-      });
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message);
-        return;
-      }
+      const data = response.data;
 
       dispatch(updateUser(data.user));
       setEditMode(false);
@@ -90,23 +87,13 @@ function Profile() {
 
       formData.append("image", image);
 
-      const response = await fetch(
-        "http://localhost:5000/api/auth/profile/image",
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
+      const response = await api.put("/api/auth/profile/image", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message);
-        return;
-      }
+      const data = response.data;
 
       dispatch(
         updateUser({
@@ -129,86 +116,66 @@ function Profile() {
     <>
       <h1>WATCHER TEST</h1>
 
-{editMode ? (
-  <>
-    {(imagePreview || user.profileImage) && (
-      <img
-        src={imagePreview || user.profileImage || ""}
-        alt="Profile"
-        width="150"
-      />
-    )}
+      {editMode ? (
+        <>
+          {(imagePreview || user.profileImage) && (
+            <img
+              src={imagePreview || user.profileImage || ""}
+              alt="Profile"
+              width="150"
+            />
+          )}
 
-    <input
-      type="file"
-      accept="image/*"
-      onChange={(e) => {
-        const file = e.target.files?.[0]
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
 
-        if (!file) return
+              if (!file) return;
 
-        if (!file.type.startsWith("image/")) {
-          setError("Please select an image file")
-          e.target.value = ""
-          return
-        }
+              if (!file.type.startsWith("image/")) {
+                setError("Please select an image file");
+                e.target.value = "";
+                return;
+              }
 
-        setError("")
-        setImage(file)
-      }}
-    />
+              setError("");
+              setImage(file);
+            }}
+          />
 
-    {image && <p>Selected: {image.name}</p>}
+          {image && <p>Selected: {image.name}</p>}
 
-    <button
-      onClick={handleImageUpload}
-      disabled={loading || !image}
-    >
-      {loading ? "Uploading..." : "Upload Image"}
-    </button>
+          <button onClick={handleImageUpload} disabled={loading || !image}>
+            {loading ? "Uploading..." : "Upload Image"}
+          </button>
 
-    <input
-      value={name}
-      onChange={(e) => setName(e.target.value)}
-    />
+          <input value={name} onChange={(e) => setName(e.target.value)} />
 
-    <input
-      value={email}
-      onChange={(e) => setEmail(e.target.value)}
-    />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} />
 
-    {error && <p>{error}</p>}
+          {error && <p>{error}</p>}
 
-    <button
-      onClick={handleSave}
-      disabled={loading}
-    >
-      {loading ? "Saving..." : "Save"}
-    </button>
+          <button onClick={handleSave} disabled={loading}>
+            {loading ? "Saving..." : "Save"}
+          </button>
 
-    <button onClick={() => setEditMode(false)}>
-      Cancel
-    </button>
-  </>
-) : (
-  <>
-    {user.profileImage && (
-      <img
-        src={user.profileImage}
-        alt="Profile"
-        width="150"
-      />
-    )}
+          <button onClick={() => setEditMode(false)}>Cancel</button>
+        </>
+      ) : (
+        <>
+          {user.profileImage && (
+            <img src={user.profileImage} alt="Profile" width="150" />
+          )}
 
-    <p>Name: {user.name}</p>
-    <p>Email: {user.email}</p>
-    <p>Role: {user.role}</p>
+          <p>Name: {user.name}</p>
+          <p>Email: {user.email}</p>
+          <p>Role: {user.role}</p>
 
-    <button onClick={handleEdit}>
-      Edit Profile
-    </button>
-  </>
-)}
+          <button onClick={handleEdit}>Edit Profile</button>
+        </>
+      )}
     </>
   );
 }
