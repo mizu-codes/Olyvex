@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import axios from "axios";
 import {
   MoreHorizontalIcon,
   PencilIcon,
@@ -53,6 +54,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "@/lib/toast";
 
 interface AdminUser {
   id: string;
@@ -61,6 +63,15 @@ interface AdminUser {
   role: "user" | "admin";
   profileImage?: string | null;
   createdAt?: string;
+}
+
+type FormScope = "add" | "edit";
+type FormField = "name" | "email" | "password";
+
+interface InvalidField {
+  scope: FormScope;
+  field: FormField;
+  value: string;
 }
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -217,7 +228,9 @@ function AdminUsers() {
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+
+  const [loadError, setLoadError] = useState("");
+  const [invalidField, setInvalidField] = useState<InvalidField | null>(null);
 
   const [search, setSearch] = useState("");
 
@@ -240,13 +253,13 @@ function AdminUsers() {
     const timeoutId = setTimeout(() => {
       const fetchUsers = async () => {
         if (!token) {
-          setError("Authentication required");
+          setLoadError("Authentication required");
           return;
         }
 
         try {
           setLoading(true);
-          setError("");
+          setLoadError("");
 
           const response = await api.get<{ users: AdminUser[] }>(
             `/api/admin/users?search=${encodeURIComponent(search)}`,
@@ -260,7 +273,7 @@ function AdminUsers() {
           setUsers(response.data.users);
         } catch (error) {
           console.error("Failed to fetch users:", error);
-          setError("Could not load users");
+          setLoadError("Could not load users");
         } finally {
           setLoading(false);
         }
@@ -274,39 +287,61 @@ function AdminUsers() {
     };
   }, [token, search]);
 
+  const showValidationError = (
+    scope: FormScope,
+    field: FormField,
+    value: string,
+    message: string,
+  ) => {
+    setInvalidField({ scope, field, value });
+    toast.error("Check your details", message);
+  };
+
+  const isInvalid = (scope: FormScope, field: FormField, value: string) =>
+    invalidField?.scope === scope &&
+    invalidField.field === field &&
+    invalidField.value === value;
+
   const handleCreateUser = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const nameError = validateName(name);
     if (nameError) {
-      setError(nameError);
+      showValidationError("add", "name", name, nameError);
       return;
     }
 
     const emailError = validateEmail(email);
     if (emailError) {
-      setError(emailError);
+      showValidationError("add", "email", email, emailError);
       return;
     }
 
     if (!password) {
-      setError("Password is required");
+      showValidationError("add", "password", password, "Password is required");
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+      showValidationError(
+        "add",
+        "password",
+        password,
+        "Password must be at least 8 characters",
+      );
       return;
     }
 
     if (!token) {
-      setError("Authentication required");
+      toast.error(
+        "Authentication required",
+        "Please sign in again to continue.",
+      );
       return;
     }
 
     try {
       setCreating(true);
-      setError("");
 
       const response = await api.post<{ user: AdminUser }>(
         "/api/admin/users",
@@ -332,9 +367,13 @@ function AdminUsers() {
       setPassword("");
       setRole("user");
       setShowAddForm(false);
+      toast.success("User created", "The new user was added successfully.");
     } catch (error) {
       console.error("Failed to create user:", error);
-      setError("Could not create user");
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data?.message ?? "Could not create user")
+        : "Could not create user";
+      toast.error("Create failed", message);
     } finally {
       setCreating(false);
     }
@@ -349,13 +388,13 @@ function AdminUsers() {
 
     const nameError = validateName(editingUser.name);
     if (nameError) {
-      setError(nameError);
+      showValidationError("edit", "name", editingUser.name, nameError);
       return;
     }
 
     const emailError = validateEmail(editingUser.email);
     if (emailError) {
-      setError(emailError);
+      showValidationError("edit", "email", editingUser.email, emailError);
       return;
     }
 
@@ -365,7 +404,6 @@ function AdminUsers() {
 
     try {
       setUpdating(true);
-      setError("");
 
       const response = await api.put<{ user: AdminUser }>(
         `/api/admin/users/${editingUser.id}`,
@@ -388,9 +426,13 @@ function AdminUsers() {
       );
 
       setEditingUser(null);
+      toast.success("User updated", "The user was updated successfully.");
     } catch (error) {
       console.error("Failed to update user:", error);
-      setError("Could not update user");
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data?.message ?? "Could not update user")
+        : "Could not update user";
+      toast.error("Update failed", message);
     } finally {
       setUpdating(false);
     }
@@ -403,7 +445,6 @@ function AdminUsers() {
 
     try {
       setDeleting(true);
-      setError("");
 
       await api.delete(`/api/admin/users/${deletingUser.id}`, {
         headers: {
@@ -416,9 +457,13 @@ function AdminUsers() {
       );
 
       setDeletingUser(null);
+      toast.success("User deleted", "The user was deleted successfully.");
     } catch (error) {
       console.error("Failed to delete user:", error);
-      setError("Could not delete user");
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data?.message ?? "Could not delete user")
+        : "Could not delete user";
+      toast.error("Delete failed", message);
     } finally {
       setDeleting(false);
     }
@@ -426,12 +471,6 @@ function AdminUsers() {
 
   const editView = useRetained(editingUser);
   const deleteView = useRetained(deletingUser);
-
-  const dialogErrorMessage = error ? (
-    <p role="alert" className="text-center text-sm text-destructive">
-      {error}
-    </p>
-  ) : null;
 
   const dialogClass = "max-h-[calc(100dvh-2rem)] overflow-y-auto";
 
@@ -483,16 +522,16 @@ function AdminUsers() {
             </Button>
           </div>
 
-          {error && (
+          {loadError && (
             <p
               role="alert"
               className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
             >
-              {error}
+              {loadError}
             </p>
           )}
 
-          {!error && (
+          {!loadError && (
             <section
               aria-busy={loading}
               className="mt-4 overflow-hidden rounded-xl border border-border bg-card"
@@ -624,6 +663,7 @@ function AdminUsers() {
               <Label htmlFor="add-user-name">Name</Label>
               <Input
                 id="add-user-name"
+                aria-invalid={isInvalid("add", "name", name)}
                 type="text"
                 placeholder="Name"
                 required
@@ -638,6 +678,7 @@ function AdminUsers() {
               <Label htmlFor="add-user-email">Email</Label>
               <Input
                 id="add-user-email"
+                aria-invalid={isInvalid("add", "email", email)}
                 type="email"
                 placeholder="Email"
                 required
@@ -650,6 +691,7 @@ function AdminUsers() {
               <Label htmlFor="add-user-password">Password</Label>
               <Input
                 id="add-user-password"
+                aria-invalid={isInvalid("add", "password", password)}
                 type="password"
                 placeholder="Password"
                 required
@@ -663,8 +705,6 @@ function AdminUsers() {
               <Label htmlFor="add-user-role">Role</Label>
               <RoleSelect id="add-user-role" value={role} onChange={setRole} />
             </div>
-
-            {dialogErrorMessage}
 
             <DialogFooter className="-mx-4 -mb-4 rounded-b-xl border-t bg-muted/50 p-4">
               <Button
@@ -703,6 +743,7 @@ function AdminUsers() {
                 <Label htmlFor="edit-user-name">Name</Label>
                 <Input
                   id="edit-user-name"
+                  aria-invalid={isInvalid("edit", "name", editView.name)}
                   required
                   minLength={2}
                   maxLength={50}
@@ -717,6 +758,7 @@ function AdminUsers() {
                 <Label htmlFor="edit-user-email">Email</Label>
                 <Input
                   id="edit-user-email"
+                  aria-invalid={isInvalid("edit", "email", editView.email)}
                   type="email"
                   required
                   value={editView.email}
@@ -737,8 +779,6 @@ function AdminUsers() {
                   }
                 />
               </div>
-
-              {dialogErrorMessage}
 
               <DialogFooter className="-mx-4 -mb-4 rounded-b-xl border-t bg-muted/50 p-4">
                 <Button
@@ -779,8 +819,6 @@ function AdminUsers() {
               undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-
-          {dialogErrorMessage}
 
           <AlertDialogFooter>
             <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
