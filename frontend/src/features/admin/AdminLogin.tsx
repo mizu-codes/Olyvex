@@ -4,6 +4,14 @@ import { useAppDispatch } from "../../app/hook";
 import { loginAdmin } from "./adminAuthSlice";
 import { api } from "../../api/client";
 import axios from "axios";
+import { Eye, EyeOff } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+
+import logo from "@/assets/olyvex-logo.png";
+import { AdminCard } from "@/components/ui/admin-card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface AdminLoginResponse {
   message: string;
@@ -23,8 +31,11 @@ function AdminLogin() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const reduceMotion = useReducedMotion();
 
   const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
@@ -70,31 +81,119 @@ function AdminLogin() {
   };
 
   return (
-    <>
-      <h1>Admin Login</h1>
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-5 overflow-x-hidden bg-[#09090B] px-4 py-6 sm:gap-6 sm:px-6 sm:py-10">
+      <motion.img
+        src={logo}
+        alt="Olyvex"
+        width={1200}
+        height={402}
+        className="h-auto w-36 select-none sm:w-40 lg:w-44"
+        initial={reduceMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        draggable={false}
+      />
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          placeholder="Admin email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+      <motion.div
+        className="w-full max-w-sm"
+        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.05, ease: "easeOut" }}
+      >
+        <AdminCard>
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-5 p-6 sm:p-7"
+          >
+            <div className="flex flex-col gap-1.5">
+              <h1 className="text-lg font-semibold tracking-tight text-white sm:text-xl">
+                Admin
+              </h1>
+              <p className="text-xs text-zinc-500">
+                Sign in to access the admin area.
+              </p>
+            </div>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+            <div className="flex flex-col gap-3.5">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="admin-email" className="text-[13px] text-zinc-200">
+                  Email
+                </Label>
+                <Input
+                  id="admin-email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="admin@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  aria-invalid={!!error}
+                  aria-describedby={error ? "admin-login-error" : undefined}
+                  className="h-10 border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600"
+                />
+              </div>
 
-        {error && <p>{error}</p>}
+              <div className="flex flex-col gap-2">
+                <Label
+                  htmlFor="admin-password"
+                  className="text-[13px] text-zinc-200"
+                >
+                  Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="admin-password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    placeholder="Your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "admin-login-error" : undefined}
+                    className="h-10 border-zinc-800 bg-zinc-950 pr-10 text-white placeholder:text-zinc-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-md text-zinc-500 transition-colors hover:text-zinc-200 focus-visible:text-zinc-200 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="size-4" aria-hidden="true" />
+                    ) : (
+                      <Eye className="size-4" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Admin Login"}
-        </button>
-      </form>
-    </>
+            <AnimatePresence initial={false}>
+              {error && (
+                <motion.p
+                  id="admin-login-error"
+                  role="alert"
+                  key="error"
+                  initial={reduceMotion ? false : { opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300"
+                >
+                  {error}
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? "Logging in..." : "Login"}
+            </Button>
+          </form>
+        </AdminCard>
+      </motion.div>
+    </main>
   );
 }
 

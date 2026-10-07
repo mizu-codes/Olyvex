@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from "react-router";
 import Login from "./features/auth/Login";
 import Register from "./features/auth/Register";
-import Dashboard from "./pages/Dashboard";
+import Home from "./pages/Home";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import { useEffect } from "react";
@@ -29,7 +29,7 @@ function App() {
       </Route>
 
       <Route element={<ProtectedRoute />}>
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/" element={<Home />} />
         <Route path="/profile" element={<Profile />} />
       </Route>
 

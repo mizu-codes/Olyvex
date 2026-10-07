@@ -5,6 +5,9 @@ import App from "./App.tsx";
 import { Provider } from "react-redux";
 import { store } from "./app/store";
 import { BrowserRouter } from "react-router"
+import { setupApiInterceptors } from "./api/client";
+setupApiInterceptors(store);
+
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
