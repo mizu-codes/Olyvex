@@ -78,6 +78,10 @@ const adminAuthSlice = createSlice({
       state.token = null;
       state.status = "unauthenticated";
     },
+
+     setToken(state, action: PayloadAction<string>) {
+    state.token = action.payload;
+  },
   },
 
   extraReducers: (builder) => {
@@ -98,6 +102,6 @@ const adminAuthSlice = createSlice({
   },
 });
 
-export const { loginAdmin, logoutAdmin } = adminAuthSlice.actions;
+export const { loginAdmin, logoutAdmin, setToken } = adminAuthSlice.actions;
 
 export default adminAuthSlice.reducer;

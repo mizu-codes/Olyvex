@@ -77,28 +77,34 @@ export const updateProfile = async (req: Request, res: Response) => {
       user.name = trimmedName;
     }
 
-    if (email !== undefined) {
-      const normalizedEmail = email.trim().toLowerCase();
+ if (email !== undefined) {
+  const normalizedEmail = email.trim().toLowerCase();
 
-      if (!normalizedEmail) {
-        return res.status(400).json({
-          message: "Email cannot be empty",
-        });
-      }
+  if (!normalizedEmail) {
+    return res.status(400).json({
+      message: "Email cannot be empty",
+    });
+  }
 
-      const existingUser = await User.findOne({
-        email: normalizedEmail,
-        _id: { $ne: req.userId },
-      });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({
+      message: "Please enter a valid email address",
+    });
+  }
 
-      if (existingUser) {
-        return res.status(409).json({
-          message: "Email already in use",
-        });
-      }
+  const existingUser = await User.findOne({
+    email: normalizedEmail,
+    _id: { $ne: req.userId },
+  });
 
-      user.email = normalizedEmail;
-    }
+  if (existingUser) {
+    return res.status(409).json({
+      message: "Email already in use",
+    });
+  }
+
+  user.email = normalizedEmail;
+}
 
     await user.save();
 
