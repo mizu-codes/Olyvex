@@ -1,7 +1,4 @@
-import axios, {
-  AxiosHeaders,
-  type InternalAxiosRequestConfig,
-} from "axios";
+import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import type { AppDispatch, RootState } from "../app/store";
 
 export const api = axios.create({
@@ -41,10 +38,7 @@ function isRefreshOrAuthRequest(url?: string) {
   );
 }
 
-function setTokenHeader(
-  config: InternalAxiosRequestConfig,
-  token: string,
-) {
+function setTokenHeader(config: InternalAxiosRequestConfig, token: string) {
   if (!config.headers) {
     config.headers = new AxiosHeaders();
   }
@@ -67,9 +61,7 @@ export function setupApiInterceptors(store: Store) {
     const state = store.getState();
 
     const token =
-      sessionType === "user"
-        ? state.auth.token
-        : state.adminAuth.token;
+      sessionType === "user" ? state.auth.token : state.adminAuth.token;
 
     if (token) {
       setTokenHeader(config, token);
@@ -87,8 +79,7 @@ export function setupApiInterceptors(store: Store) {
         return Promise.reject(error);
       }
 
-      const originalRequest =
-        error.config as RetryConfig | undefined;
+      const originalRequest = error.config as RetryConfig | undefined;
 
       if (
         error.response?.status !== 401 ||
@@ -100,10 +91,7 @@ export function setupApiInterceptors(store: Store) {
 
       const sessionType = getSessionType(originalRequest.url);
 
-      if (
-        !sessionType ||
-        isRefreshOrAuthRequest(originalRequest.url)
-      ) {
+      if (!sessionType || isRefreshOrAuthRequest(originalRequest.url)) {
         return Promise.reject(error);
       }
 

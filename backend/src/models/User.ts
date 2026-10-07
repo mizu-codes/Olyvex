@@ -6,9 +6,9 @@ interface IUser {
   password: string;
   role: "user" | "admin";
   profileImage?: string;
-  profileImagePublicId?: string
-  createdAt?: Date
-  updatedAt?: Date
+  profileImagePublicId?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 const userSchema = new Schema<IUser>(
@@ -39,9 +39,9 @@ const userSchema = new Schema<IUser>(
       default: null,
     },
     profileImagePublicId: {
-  type: String,
-  default: null,
-},
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -74,37 +74,49 @@ export const updateProfile = async (req: Request, res: Response) => {
         });
       }
 
+      if (trimmedName.length < 2) {
+        return res.status(400).json({
+          message: "Name must be at least 2 characters",
+        });
+      }
+
+      if (trimmedName.length > 50) {
+        return res.status(400).json({
+          message: "Name must be 50 characters or less",
+        });
+      }
+
       user.name = trimmedName;
     }
 
- if (email !== undefined) {
-  const normalizedEmail = email.trim().toLowerCase();
+    if (email !== undefined) {
+      const normalizedEmail = email.trim().toLowerCase();
 
-  if (!normalizedEmail) {
-    return res.status(400).json({
-      message: "Email cannot be empty",
-    });
-  }
+      if (!normalizedEmail) {
+        return res.status(400).json({
+          message: "Email cannot be empty",
+        });
+      }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-    return res.status(400).json({
-      message: "Please enter a valid email address",
-    });
-  }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        return res.status(400).json({
+          message: "Please enter a valid email address",
+        });
+      }
 
-  const existingUser = await User.findOne({
-    email: normalizedEmail,
-    _id: { $ne: req.userId },
-  });
+      const existingUser = await User.findOne({
+        email: normalizedEmail,
+        _id: { $ne: req.userId },
+      });
 
-  if (existingUser) {
-    return res.status(409).json({
-      message: "Email already in use",
-    });
-  }
+      if (existingUser) {
+        return res.status(409).json({
+          message: "Email already in use",
+        });
+      }
 
-  user.email = normalizedEmail;
-}
+      user.email = normalizedEmail;
+    }
 
     await user.save();
 

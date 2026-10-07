@@ -2,11 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { jwtVerify } from "jose";
 import { getAccessTokenSecret } from "../utils/jwt.js";
 
-export const authMiddleware = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
+export const authMiddleware = async ( req: Request, res: Response, next: NextFunction ) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {

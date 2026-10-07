@@ -3,8 +3,7 @@ import { useReducedMotion } from "motion/react";
 import UserNavbar from "../components/layout/UserNavbar";
 import { useAppSelector } from "../app/hook";
 
-/* Installed by: npx shadcn@latest add @react-bits/LightRays-JS-CSS */
-import LightRays from "@/components/LightRays";
+import LightRays from "@/components/effects/LightRays";
 
 function Home() {
   const user = useAppSelector((state) => state.auth.user);
@@ -13,10 +12,6 @@ function Home() {
   const displayName = user?.name?.trim() || user?.email || "";
 
   return (
-    /* Root: ONE stacking context covering the whole viewport.
-       z-order: rays (0) < fade (1) < navbar (40, sticky, set inside UserNavbar)
-       and hero content (10). min-height (not height) so it is exactly one
-       viewport normally but grows instead of clipping on tiny screens. */
     <div
       style={{
         position: "relative",
@@ -27,9 +22,6 @@ function Home() {
         background: "#09090B",
       }}
     >
-      {/* Background: LightRays spans the full root, INCLUDING behind the navbar.
-          Its own wrapper clips the canvas, so it can never cause page scroll,
-          and it never receives pointer events. */}
       <div
         aria-hidden="true"
         className="opacity-70 sm:opacity-100"
@@ -54,7 +46,6 @@ function Home() {
         />
       </div>
 
-      {/* Soft fade into the page background so the rays stay subtle. */}
       <div
         aria-hidden="true"
         style={{
@@ -67,10 +58,8 @@ function Home() {
         }}
       />
 
-      {/* Navbar: sticky with z-index 40 inside UserNavbar, above the rays. */}
       <UserNavbar />
 
-      {/* Hero: takes all remaining height, above the rays. */}
       <main
         style={{
           position: "relative",
@@ -82,7 +71,6 @@ function Home() {
           justifyContent: "center",
         }}
       >
-        {/* Content */}
         <section
           style={{
             position: "relative",
@@ -109,7 +97,6 @@ function Home() {
               marginTop: 32,
             }}
           >
-            {/* Static UI for now: no navigation, handlers, or routes. */}
             <button
               type="button"
               className="rounded-lg bg-white text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B] focus-visible:outline-none"
@@ -143,4 +130,4 @@ function Home() {
   );
 }
 
-export default Home
+export default Home;

@@ -13,11 +13,6 @@ interface MagicCardProps {
   gradientTo?: string
 }
 
-/**
- * Magic UI "Magic Card" (gradient mode), adapted for Vite + React.
- * - removed "use client" and next-themes (Olyvex is permanently dark)
- * - orb mode dropped: unused, and it was the only consumer of the theme hook
- */
 export function MagicCard({
   children,
   className,

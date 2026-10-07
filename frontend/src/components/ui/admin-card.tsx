@@ -14,21 +14,11 @@ interface AdminCardProps {
   beamColorTo?: string
 }
 
-/**
- * Olyvex admin card.
- * Same shell as MagicCard (rounded-2xl, card surface, deep shadow) but the
- * effect is different: instead of a pointer-following glow, a thin beam
- * continuously orbits the border, with a faint top-edge hairline.
- * Beam colors are the same as MagicCard's border gradient (#9E7AFF -> #FE8BBB).
- * Pointer-independent, so it feels controlled and "always on".
- * With reduced motion the beam is not rendered; only the static hairline stays.
- */
 export function AdminCard({
   children,
   className,
   beamSize = 120,
   beamDuration = 10,
-  // Exact MagicCard defaults (gradientFrom / gradientTo)
   beamColorFrom = "#9E7AFF",
   beamColorTo = "#FE8BBB",
 }: AdminCardProps) {

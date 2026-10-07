@@ -7,23 +7,16 @@ import { updateUser } from "../auth/authSlice";
 import { api } from "../../api/client";
 import UserNavbar from "../../components/layout/UserNavbar";
 
-import Galaxy from "@/components/Galaxy";
+import Galaxy from "@/components/effects/Galaxy";
 import { MagicCard } from "@/components/ui/magic-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-/*
- * Galaxy re-creates its whole WebGL scene whenever `focal` / `rotation`
- * change identity, so they must be module-level constants.
- */
 const GALAXY_FOCAL = [0.5, 0.5] as const;
 const GALAXY_ROTATION = [1.0, 0.0] as const;
 
-/*
- * Memoized so typing in the edit form (which re-renders Profile) never
- * touches the Galaxy canvas.
- */
+/* Memoized so typing in the edit form (which re-renders Profile) never touches the Galaxy canvas. */
 const GalaxyBackground = memo(function GalaxyBackground({
   animated,
 }: {
@@ -49,7 +42,6 @@ const GalaxyBackground = memo(function GalaxyBackground({
   );
 });
 
-/** Circular avatar: real image when available, otherwise the user's initial. */
 function ProfileAvatar({
   src,
   initial,
@@ -114,7 +106,6 @@ function Profile() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /* Hooks must run before the early return below (same logic as before). */
   useEffect(() => {
     if (!image) {
       setImagePreview(null);
@@ -166,6 +157,16 @@ function Profile() {
 
     if (!trimmedName) {
       setError("Name cannot be empty");
+      return;
+    }
+
+    if (trimmedName.length < 2) {
+      setError("Name must be at least 2 characters");
+      return;
+    }
+
+    if (trimmedName.length > 50) {
+      setError("Name must be 50 characters or less");
       return;
     }
 
@@ -244,9 +245,6 @@ function Profile() {
   const avatarSrc = imagePreview || user.profileImage || null;
 
   return (
-    /* Root: one stacking context, exactly one viewport tall (grows only if
-       the edit form is taller than a very small screen).
-       z-order: Galaxy (0) < fade (1) < navbar (40, sticky) and card (10). */
     <div
       style={{
         position: "relative",
@@ -257,10 +255,6 @@ function Profile() {
         background: "#09090B",
       }}
     >
-      {/* Galaxy: fills the root, clipped by its own wrapper so it can never
-          cause scroll. It stays interactive only so its mouse-parallax
-          listeners work; every layer above it is pointer-events: none except
-          the card and navbar. */}
       <div
         aria-hidden="true"
         className="opacity-70 sm:opacity-90"
@@ -274,7 +268,6 @@ function Profile() {
         <GalaxyBackground animated={!reduceMotion} />
       </div>
 
-      {/* Soft fade into the page background so the stars stay subtle. */}
       <div
         aria-hidden="true"
         style={{
@@ -382,6 +375,9 @@ function Profile() {
                       <Input
                         id="profile-name"
                         value={name}
+                        required
+                        minLength={2}
+                        maxLength={50}
                         onChange={(e) => setName(e.target.value)}
                         autoComplete="name"
                         className="h-10 border-zinc-800 bg-zinc-950 text-white"

@@ -2,13 +2,19 @@ import type { Request, Response } from "express";
 import { User } from "../../models/User.js";
 import { hashPassword } from "../../utils/password.js";
 import { comparePassword } from "../../utils/password.js";
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../utils/jwt.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from "../../utils/jwt.js";
 
 interface RegisterRequestBody {
   name: string;
   email: string;
   password: string;
 }
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const register = async (req: Request, res: Response) => {
   const { name, email, password } = req.body as RegisterRequestBody;
@@ -19,7 +25,38 @@ export const register = async (req: Request, res: Response) => {
     });
   }
 
+  const trimmedName = name.trim();
   const normalizedEmail = email.trim().toLowerCase();
+
+  if (!trimmedName) {
+    return res.status(400).json({
+      message: "Name cannot be empty",
+    });
+  }
+
+  if (trimmedName.length < 2) {
+    return res.status(400).json({
+      message: "Name must be at least 2 characters",
+    });
+  }
+
+  if (trimmedName.length > 50) {
+    return res.status(400).json({
+      message: "Name must be 50 characters or less",
+    });
+  }
+
+  if (!emailRegex.test(normalizedEmail)) {
+    return res.status(400).json({
+      message: "Invalid email format",
+    });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({
+      message: "Password must be at least 8 characters",
+    });
+  }
 
   const existingUser = await User.findOne({ email: normalizedEmail });
 
@@ -32,7 +69,7 @@ export const register = async (req: Request, res: Response) => {
   const hashedPassword = await hashPassword(password);
 
   const user = await User.create({
-    name: name.trim(),
+    name: trimmedName,
     email: normalizedEmail,
     password: hashedPassword,
   });
@@ -65,6 +102,12 @@ export const login = async (req: Request, res: Response) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return res.status(400).json({
+        message: "Invalid email format",
+      });
+    }
+
     const user = await User.findOne({
       email: normalizedEmail,
     });
@@ -84,10 +127,10 @@ export const login = async (req: Request, res: Response) => {
     }
 
     if (user.role !== "user") {
-  return res.status(403).json({
-    message: "Use admin login",
-  });
-}
+      return res.status(403).json({
+        message: "Use admin login",
+      });
+    }
 
     const accessToken = await generateAccessToken(
       user._id.toString(),
@@ -124,58 +167,58 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
-export const refresh = async ( req: Request, res: Response ) => {
+export const refresh = async (req: Request, res: Response) => {
   try {
-    const refreshToken = req.cookies.refreshToken
+    const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
       return res.status(401).json({
         message: "Refresh token missing",
-      })
+      });
     }
 
-    const payload = await verifyRefreshToken(refreshToken)
+    const payload = await verifyRefreshToken(refreshToken);
 
-    const user = await User.findById(payload.sub)
+    const user = await User.findById(payload.sub);
 
     if (!user) {
       return res.status(401).json({
         message: "User not found",
-      })
+      });
     }
 
     if (user.role !== "user") {
-  return res.status(403).json({
-    message: "Use admin login",
-  })
-}
+      return res.status(403).json({
+        message: "Use admin login",
+      });
+    }
 
     const accessToken = await generateAccessToken(
       user._id.toString(),
-      user.role
-    )
+      user.role,
+    );
 
     return res.status(200).json({
       token: accessToken,
-    })
+    });
   } catch (error) {
-    console.error("Refresh error:", error)
+    console.error("Refresh error:", error);
 
     return res.status(401).json({
       message: "Invalid or expired refresh token",
-    })
+    });
   }
-}
+};
 
-export const logout = async (_req: Request, res: Response ) => {
+export const logout = async (_req: Request, res: Response) => {
   res.clearCookie("refreshToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/api/auth",
-  })
+  });
 
   return res.status(200).json({
     message: "Logout successful",
-  })
-}
+  });
+};
