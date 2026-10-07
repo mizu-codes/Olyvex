@@ -116,7 +116,10 @@ function AdminLogin() {
 
             <div className="flex flex-col gap-3.5">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="admin-email" className="text-[13px] text-zinc-200">
+                <Label
+                  htmlFor="admin-email"
+                  className="text-[13px] text-zinc-200"
+                >
                   Email
                 </Label>
                 <Input
@@ -156,7 +159,9 @@ function AdminLogin() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                     aria-pressed={showPassword}
                     className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-md text-zinc-500 transition-colors hover:text-zinc-200 focus-visible:text-zinc-200 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none"
                   >

@@ -1,6 +1,14 @@
 import { Router } from "express";
-import { register, login, refresh,logout } from "../controllers/auth/auth.controller.js";
-import { getMe, updateProfile } from "../controllers/profile/profile.controller.js";
+import {
+  register,
+  login,
+  refresh,
+  logout,
+} from "../controllers/auth/auth.controller.js";
+import {
+  getMe,
+  updateProfile,
+} from "../controllers/profile/profile.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { uploadProfileImage } from "../controllers/profile/profile.controller.js";
 import { upload } from "../middleware/upload.middleware.js";

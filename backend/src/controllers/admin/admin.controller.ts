@@ -3,8 +3,8 @@ import { User } from "../../models/User.js";
 import { comparePassword, hashPassword } from "../../utils/password.js";
 import { generateAccessToken, generateRefreshToken } from "../../utils/jwt.js";
 import cloudinary from "../../config/cloudinary.js";
-import { isValidObjectId } from "mongoose"
-import { verifyRefreshToken } from "../../utils/jwt.js"
+import { isValidObjectId } from "mongoose";
+import { verifyRefreshToken } from "../../utils/jwt.js";
 
 interface AdminLoginRequestBody {
   email: string;
@@ -24,72 +24,69 @@ interface UpdateUserRequestBody {
   role?: "user" | "admin";
 }
 
-export const adminRefresh = async (
-  req: Request,
-  res: Response
-) => {
+export const adminRefresh = async (req: Request, res: Response) => {
   try {
-    const token = req.cookies.adminRefreshToken
+    const token = req.cookies.adminRefreshToken;
 
     if (!token) {
       return res.status(401).json({
         message: "Admin session not found",
-      })
+      });
     }
 
-    const payload = await verifyRefreshToken(token)
+    const payload = await verifyRefreshToken(token);
 
-    const user = await User.findById(payload.sub)
+    const user = await User.findById(payload.sub);
 
     if (!user) {
       return res.status(401).json({
         message: "Admin session invalid",
-      })
+      });
     }
 
     if (user.role !== "admin") {
       return res.status(403).json({
         message: "Admin access required",
-      })
+      });
     }
 
     const accessToken = await generateAccessToken(
       user._id.toString(),
-      user.role
-    )
+      user.role,
+    );
 
     return res.status(200).json({
       token: accessToken,
-    })
+    });
   } catch (error) {
-    console.error("Admin refresh error:", error)
+    console.error("Admin refresh error:", error);
 
     return res.status(401).json({
       message: "Invalid or expired admin session",
-    })
+    });
   }
-}
+};
 
-export const getAdminMe = async ( req: Request, res: Response ) => {
+export const getAdminMe = async (req: Request, res: Response) => {
   try {
     if (!req.userId) {
       return res.status(401).json({
         message: "Authentication required",
-      })
+      });
     }
 
-    const user = await User.findById(req.userId).select("-password")
+    const user = await User.findById(req.userId).select("-password");
 
     if (!user) {
       return res.status(404).json({
         message: "User not found",
-      })
+      });
     }
 
     if (user.role !== "admin") {
       return res.status(403).json({
         message: "Admin access required",
-      })
+      });
     }
 
     return res.status(200).json({
@@ -100,28 +97,28 @@ export const getAdminMe = async ( req: Request, res: Response ) => {
         role: user.role,
         profileImage: user.profileImage,
       },
-    })
+    });
   } catch (error) {
-    console.error("Get admin user error:", error)
+    console.error("Get admin user error:", error);
 
     return res.status(500).json({
       message: "Internal server error",
-    })
+    });
   }
-}
+};
 
-export const adminLogout = async ( _req: Request, res: Response ) => {
+export const adminLogout = async (_req: Request, res: Response) => {
   res.clearCookie("adminRefreshToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/api/admin",
-  })
+  });
 
   return res.status(200).json({
     message: "Admin logged out successfully",
-  })
-}
+  });
+};
 
 export const adminLogin = async (req: Request, res: Response) => {
   try {
@@ -197,6 +194,8 @@ export const adminLogin = async (req: Request, res: Response) => {
 const escapeRegex = (value: string) => {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const getUsers = async (req: Request, res: Response) => {
   try {
@@ -281,9 +280,27 @@ export const createUser = async (req: Request, res: Response) => {
       });
     }
 
+    if (trimmedName.length < 2) {
+      return res.status(400).json({
+        message: "Name must be at least 2 characters",
+      });
+    }
+
+    if (trimmedName.length > 50) {
+      return res.status(400).json({
+        message: "Name must be 50 characters or less",
+      });
+    }
+
     if (!normalizedEmail) {
       return res.status(400).json({
         message: "Email cannot be empty",
+      });
+    }
+
+    if (!emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({
+        message: "Invalid email format",
       });
     }
 
@@ -349,6 +366,12 @@ export const updateUser = async (req: Request, res: Response) => {
       });
     }
 
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        message: "Invalid user ID",
+      });
+    }
+
     if (name === undefined && email === undefined && role === undefined) {
       return res.status(400).json({
         message: "Nothing to update",
@@ -372,6 +395,18 @@ export const updateUser = async (req: Request, res: Response) => {
         });
       }
 
+      if (trimmedName.length < 2) {
+        return res.status(400).json({
+          message: "Name must be at least 2 characters",
+        });
+      }
+
+      if (trimmedName.length > 50) {
+        return res.status(400).json({
+          message: "Name must be 50 characters or less",
+        });
+      }
+
       user.name = trimmedName;
     }
 
@@ -381,6 +416,12 @@ export const updateUser = async (req: Request, res: Response) => {
       if (!normalizedEmail) {
         return res.status(400).json({
           message: "Email cannot be empty",
+        });
+      }
+
+      if (!emailRegex.test(normalizedEmail)) {
+        return res.status(400).json({
+          message: "Invalid email format",
         });
       }
 
@@ -432,60 +473,54 @@ export const updateUser = async (req: Request, res: Response) => {
 
 export const deleteUser = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params
+    const { id } = req.params;
 
     if (!id) {
       return res.status(400).json({
         message: "User ID is required",
-      })
+      });
     }
 
     if (!isValidObjectId(id)) {
       return res.status(400).json({
         message: "Invalid user ID",
-      })
+      });
     }
 
     if (id === req.userId) {
       return res.status(403).json({
         message: "You cannot delete your own account",
-      })
+      });
     }
 
-    const user = await User.findById(id)
+    const user = await User.findById(id);
 
     if (!user) {
       return res.status(404).json({
         message: "User not found",
-      })
+      });
     }
 
-    await User.findByIdAndDelete(id)
+    await User.findByIdAndDelete(id);
 
     if (user.profileImagePublicId) {
       try {
-        await cloudinary.uploader.destroy(
-          user.profileImagePublicId,
-          {
-            resource_type: "image",
-          }
-        )
+        await cloudinary.uploader.destroy(user.profileImagePublicId, {
+          resource_type: "image",
+        });
       } catch (error) {
-        console.error(
-          "Failed to delete user's Cloudinary image:",
-          error
-        )
+        console.error("Failed to delete user's Cloudinary image:", error);
       }
     }
 
     return res.status(200).json({
       message: "User deleted successfully",
-    })
+    });
   } catch (error) {
-    console.error("Delete user error:", error)
+    console.error("Delete user error:", error);
 
     return res.status(500).json({
       message: "Internal server error",
-    })
+    });
   }
-}
+};

@@ -11,13 +11,6 @@ import { logout } from "../../features/auth/authSlice";
 import logo from "@/assets/olyvex-logo.png";
 import { cn } from "@/lib/utils";
 
-/*
- * Structural layout (sizes, grid/flex, visibility, overlay positioning) is set
- * with inline styles + a matchMedia hook, NOT utility classes, so it cannot be
- * broken by Tailwind/CSS ordering. Tailwind classes below are cosmetic only
- * (colors, borders, hover, focus).
- */
-
 const NAV_ITEMS = [
   { label: "Home", to: "/", icon: Home },
   { label: "Profile", to: "/profile", icon: User },
@@ -26,7 +19,6 @@ const NAV_ITEMS = [
 const NAVBAR_HEIGHT = 64;
 
 function isActive(pathname: string, to: string) {
-  /* "/" matches only the exact root so it is never active on /profile. */
   if (to === "/") return pathname === "/";
   return pathname === to || pathname.startsWith(`${to}/`);
 }
@@ -45,7 +37,6 @@ function useMediaQuery(query: string) {
   return matches;
 }
 
-/** Logo with an explicit, constrained width. Intrinsic image size is never used. */
 function Logo({ width }: { width: number }) {
   return (
     <span
@@ -75,7 +66,6 @@ function Logo({ width }: { width: number }) {
   );
 }
 
-/** Quiet initial badge: soft violet tint, no gradient. */
 function UserAvatar({ initial }: { initial: string }) {
   return (
     <span
@@ -95,16 +85,16 @@ function UserAvatar({ initial }: { initial: string }) {
   );
 }
 
-/**
- * Static UI representation of the current authenticated session.
- * Solid green dot + a slow expanding ring. Reduced motion: no animation,
- * just a faint static halo.
- */
 function AccountStatus({ animate }: { animate: boolean }) {
   return (
     <span
       className="text-xs text-zinc-400"
-      style={{ display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        whiteSpace: "nowrap",
+      }}
     >
       <span
         aria-hidden="true"
@@ -165,7 +155,6 @@ function UserNavbar() {
   const logoWidth = isLarge ? 140 : isDesktop ? 124 : 108;
   const sheetOpenNow = sheetOpen && !isDesktop;
 
-  /* Same behavior as before. */
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
@@ -176,13 +165,13 @@ function UserNavbar() {
     }
   };
 
-  /* Reaching the desktop breakpoint closes both overlays. */
+  /* desktop breakpoint closes both overlays */
   useEffect(() => {
     if (isDesktop) setSheetOpen(false);
     else setMenuOpen(false);
   }, [isDesktop]);
 
-  /* User dropdown: close on outside press / Escape. */
+  /* User dropdown: close on outside press */
   useEffect(() => {
     if (!menuOpen) return;
     const onPointerDown = (e: PointerEvent) => {
@@ -199,7 +188,7 @@ function UserNavbar() {
     };
   }, [menuOpen]);
 
-  /* Mobile sheet: scroll lock + Escape. */
+  /* Mobile sheet: scroll lock */
   useEffect(() => {
     if (!sheetOpenNow) return;
     const previousOverflow = document.body.style.overflow;
@@ -214,7 +203,7 @@ function UserNavbar() {
     };
   }, [sheetOpenNow]);
 
-  /* Focus management for the sheet. */
+  /* Focus management for the sheet */
   useEffect(() => {
     if (sheetOpenNow) {
       closeBtnRef.current?.focus();
@@ -242,16 +231,22 @@ function UserNavbar() {
     }
   };
 
-  const fade = reduceMotion ? { duration: 0 } : { duration: 0.15, ease: "easeOut" as const };
+  const fade = reduceMotion
+    ? { duration: 0 }
+    : { duration: 0.15, ease: "easeOut" as const };
 
-  /* ---------- Mobile overlay (portaled, fixed to the viewport) ---------- */
+  /* Mobile overlay (portaled, fixed to the viewport) */
   const mobileSheet = (
     <AnimatePresence>
       {sheetOpenNow && (
         <div style={{ position: "fixed", inset: 0, zIndex: 100 }}>
           <motion.div
             aria-hidden="true"
-            style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)" }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0,0,0,0.7)",
+            }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -269,7 +264,9 @@ function UserNavbar() {
             animate={reduceMotion ? { opacity: 1 } : { x: 0 }}
             exit={reduceMotion ? { opacity: 0 } : { x: "100%" }}
             transition={
-              reduceMotion ? { duration: 0 } : { duration: 0.25, ease: "easeOut" }
+              reduceMotion
+                ? { duration: 0 }
+                : { duration: 0.25, ease: "easeOut" }
             }
             className="border-l border-zinc-800 shadow-2xl shadow-black/50"
             style={{
@@ -316,7 +313,12 @@ function UserNavbar() {
 
             <nav
               aria-label="Main"
-              style={{ display: "flex", flexDirection: "column", gap: 4, padding: 12 }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+                padding: 12,
+              }}
             >
               {NAV_ITEMS.map(({ label, to, icon: Icon }) => {
                 const active = isActive(pathname, to);
@@ -339,10 +341,7 @@ function UserNavbar() {
                       padding: "10px 12px",
                     }}
                   >
-                    <Icon
-                      aria-hidden="true"
-                      size={16}
-                    />
+                    <Icon aria-hidden="true" size={16} />
                     {label}
                   </NavLink>
                 );
@@ -363,8 +362,12 @@ function UserNavbar() {
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <UserAvatar initial={initial} />
                   <div style={{ minWidth: 0 }}>
-                    <p className="truncate text-sm font-medium text-white">{displayName}</p>
-                    <p className="truncate text-xs text-zinc-500">{user.email}</p>
+                    <p className="truncate text-sm font-medium text-white">
+                      {displayName}
+                    </p>
+                    <p className="truncate text-xs text-zinc-500">
+                      {user.email}
+                    </p>
                   </div>
                 </div>
                 <AccountStatus animate={!reduceMotion} />
@@ -393,7 +396,7 @@ function UserNavbar() {
     </AnimatePresence>
   );
 
-  /* ---------- Navbar ---------- */
+  /* Navbar  */
   return (
     <>
       <motion.header
@@ -407,10 +410,7 @@ function UserNavbar() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
       >
-        {/*
-          Mobile: flex (logo left, hamburger right).
-          md+: grid 1fr | auto | 1fr so the nav is centered on the card.
-        */}
+        {/* Mobile: flex (logo left, hamburger right)*/}
         <div
           className="rounded-2xl border border-white/10 shadow-lg shadow-black/30"
           style={{
@@ -430,7 +430,14 @@ function UserNavbar() {
           }}
         >
           {/* Left: brand */}
-          <div style={{ display: "flex", alignItems: "center", minWidth: 0, justifySelf: "start" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              minWidth: 0,
+              justifySelf: "start",
+            }}
+          >
             <Link
               to="/"
               aria-label="Olyvex home"
@@ -443,7 +450,10 @@ function UserNavbar() {
 
           {/* Center: navigation (desktop / tablet only, not rendered on mobile) */}
           {isDesktop && (
-            <nav aria-label="Main" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <nav
+              aria-label="Main"
+              style={{ display: "flex", alignItems: "center", gap: 4 }}
+            >
               {NAV_ITEMS.map(({ label, to, icon: Icon }) => {
                 const active = isActive(pathname, to);
                 return (
@@ -470,7 +480,6 @@ function UserNavbar() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    
                     <Icon
                       aria-hidden="true"
                       size={16}
@@ -484,11 +493,22 @@ function UserNavbar() {
           )}
 
           {/* Right: user menu (desktop / tablet) or hamburger (mobile) */}
-          <div style={{ display: "flex", alignItems: "center", justifySelf: "end" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifySelf: "end",
+            }}
+          >
             {isDesktop && user && (
               <div
                 ref={menuRef}
-                style={{ position: "relative", display: "flex", alignItems: "center", gap: 12 }}
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                }}
               >
                 <AccountStatus animate={!reduceMotion} />
 
@@ -516,7 +536,9 @@ function UserNavbar() {
                     aria-hidden="true"
                     size={16}
                     className="text-zinc-500 transition-transform"
-                    style={{ transform: menuOpen ? "rotate(180deg)" : undefined }}
+                    style={{
+                      transform: menuOpen ? "rotate(180deg)" : undefined,
+                    }}
                   />
                 </button>
 
@@ -525,7 +547,11 @@ function UserNavbar() {
                     <motion.div
                       role="menu"
                       aria-label="User menu"
-                      initial={reduceMotion ? false : { opacity: 0, y: -4, scale: 0.98 }}
+                      initial={
+                        reduceMotion
+                          ? false
+                          : { opacity: 0, y: -4, scale: 0.98 }
+                      }
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0 }}
                       transition={fade}
@@ -553,10 +579,15 @@ function UserNavbar() {
                           <p className="truncate text-sm font-medium text-white">
                             {displayName}
                           </p>
-                          <p className="truncate text-xs text-zinc-500">{user.email}</p>
+                          <p className="truncate text-xs text-zinc-500">
+                            {user.email}
+                          </p>
                         </div>
                       </div>
-                      <div className="border-t border-zinc-800" style={{ padding: 4 }}>
+                      <div
+                        className="border-t border-zinc-800"
+                        style={{ padding: 4 }}
+                      >
                         <button
                           type="button"
                           role="menuitem"
@@ -606,9 +637,10 @@ function UserNavbar() {
         </div>
       </motion.header>
 
-      {typeof document !== "undefined" && createPortal(mobileSheet, document.body)}
+      {typeof document !== "undefined" &&
+        createPortal(mobileSheet, document.body)}
     </>
   );
 }
 
-export default UserNavbar
+export default UserNavbar;

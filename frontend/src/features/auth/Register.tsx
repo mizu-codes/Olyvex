@@ -27,20 +27,47 @@ function Register() {
   const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    setLoading(true);
     setError("");
 
-    if (!name.trim() || !email.trim() || !password) {
-      setError("All fields are required");
-      setLoading(false);
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) {
+      setError("Name is required");
+      return;
+    }
+
+    if (trimmedName.length < 2) {
+      setError("Name must be at least 2 characters");
+      return;
+    }
+
+    if (trimmedName.length > 50) {
+      setError("Name must be 50 characters or less");
+      return;
+    }
+
+    if (!trimmedEmail) {
+      setError("Email is required");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    if (!password) {
+      setError("Password is required");
       return;
     }
 
     if (password.length < 8) {
       setError("Password must be at least 8 characters");
-      setLoading(false);
       return;
     }
+
+    setLoading(true);
 
     try {
       await api.post<{ message: string }>("/api/auth/register", {
@@ -110,6 +137,9 @@ function Register() {
                   type="text"
                   autoComplete="name"
                   placeholder="Your name"
+                  required
+                  minLength={2}
+                  maxLength={50}
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   aria-invalid={!!error}
@@ -128,6 +158,7 @@ function Register() {
                   type="email"
                   autoComplete="email"
                   placeholder="you@example.com"
+                  required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   aria-invalid={!!error}
@@ -148,6 +179,8 @@ function Register() {
                     autoComplete="new-password"
                     placeholder="At least 8 characters"
                     value={password}
+                    required
+                    minLength={8}
                     onChange={(event) => setPassword(event.target.value)}
                     aria-invalid={!!error}
                     aria-describedby={error ? "register-error" : undefined}

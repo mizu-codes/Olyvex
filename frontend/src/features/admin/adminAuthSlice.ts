@@ -79,9 +79,9 @@ const adminAuthSlice = createSlice({
       state.status = "unauthenticated";
     },
 
-     setToken(state, action: PayloadAction<string>) {
-    state.token = action.payload;
-  },
+    setToken(state, action: PayloadAction<string>) {
+      state.token = action.payload;
+    },
   },
 
   extraReducers: (builder) => {
