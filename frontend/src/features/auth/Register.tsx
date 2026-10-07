@@ -3,13 +3,14 @@ import { api } from "../../api/client";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 
 import logo from "@/assets/olyvex-logo.png";
 import { MagicCard } from "@/components/ui/magic-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/lib/toast";
 
 function Register() {
   const navigate = useNavigate();
@@ -20,50 +21,60 @@ function Register() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [invalidField, setInvalidField] = useState<
+    "name" | "email" | "password" | null
+  >(null);
 
   const reduceMotion = useReducedMotion();
+
+  const showValidationError = (
+    field: "name" | "email" | "password",
+    message: string,
+  ) => {
+    setInvalidField(field);
+    toast.error("Check your details", message);
+  };
 
   const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    setError("");
+    setInvalidField(null);
 
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
 
     if (!trimmedName) {
-      setError("Name is required");
+      showValidationError("name", "Name is required");
       return;
     }
 
     if (trimmedName.length < 2) {
-      setError("Name must be at least 2 characters");
+      showValidationError("name", "Name must be at least 2 characters");
       return;
     }
 
     if (trimmedName.length > 50) {
-      setError("Name must be 50 characters or less");
+      showValidationError("name", "Name must be 50 characters or less");
       return;
     }
 
     if (!trimmedEmail) {
-      setError("Email is required");
+      showValidationError("email", "Email is required");
       return;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError("Please enter a valid email address");
+      showValidationError("email", "Please enter a valid email address");
       return;
     }
 
     if (!password) {
-      setError("Password is required");
+      showValidationError("password", "Password is required");
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+      showValidationError("password", "Password must be at least 8 characters");
       return;
     }
 
@@ -80,13 +91,18 @@ function Register() {
       setEmail("");
       setPassword("");
 
+      toast.success(
+        "Account created",
+        "Your account was created successfully.",
+      );
+
       navigate("/login", { replace: true });
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        setError(error.response?.data?.message ?? "Something went wrong");
-      } else {
-        setError("Something went wrong");
-      }
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data?.message ?? "Something went wrong")
+        : "Something went wrong";
+
+      toast.error("Registration failed", message);
     } finally {
       setLoading(false);
     }
@@ -142,8 +158,7 @@ function Register() {
                   maxLength={50}
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  aria-invalid={!!error}
-                  aria-describedby={error ? "register-error" : undefined}
+                  aria-invalid={invalidField === "name"}
                   className="h-10 border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600"
                 />
               </div>
@@ -161,8 +176,7 @@ function Register() {
                   required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  aria-invalid={!!error}
-                  aria-describedby={error ? "register-error" : undefined}
+                  aria-invalid={invalidField === "email"}
                   className="h-10 border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600"
                 />
               </div>
@@ -182,8 +196,7 @@ function Register() {
                     required
                     minLength={8}
                     onChange={(event) => setPassword(event.target.value)}
-                    aria-invalid={!!error}
-                    aria-describedby={error ? "register-error" : undefined}
+                    aria-invalid={invalidField === "password"}
                     className="h-10 border-zinc-800 bg-zinc-950 pr-10 text-white placeholder:text-zinc-600"
                   />
                   <button
@@ -204,24 +217,6 @@ function Register() {
                 </div>
               </div>
             </div>
-
-            <AnimatePresence initial={false}>
-              {error && (
-                <motion.p
-                  id="register-error"
-                  role="alert"
-                  key="error"
-                  initial={reduceMotion ? false : { opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300"
-                >
-                  {error}
-                </motion.p>
-              )}
-            </AnimatePresence>
-
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Creating account..." : "Create account"}
             </Button>

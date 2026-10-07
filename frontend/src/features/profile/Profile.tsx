@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import axios from "axios";
 import { Camera } from "lucide-react";
 
 import { useAppSelector, useAppDispatch } from "../../app/hook";
@@ -12,6 +13,7 @@ import { MagicCard } from "@/components/ui/magic-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/lib/toast";
 
 const GALAXY_FOCAL = [0.5, 0.5] as const;
 const GALAXY_ROTATION = [1.0, 0.0] as const;
@@ -99,7 +101,9 @@ function Profile() {
   const [email, setEmail] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [invalidField, setInvalidField] = useState<"name" | "email" | null>(
+    null,
+  );
 
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -141,13 +145,13 @@ function Profile() {
   const handleEdit = () => {
     setName(user.name);
     setEmail(user.email);
-    setError("");
+    setInvalidField(null);
     setEditMode(true);
   };
 
   const handleCancel = () => {
     clearImageSelection();
-    setError("");
+    setInvalidField(null);
     setEditMode(false);
   };
 
@@ -156,28 +160,32 @@ function Profile() {
     const trimmedEmail = email.trim();
 
     if (!trimmedName) {
-      setError("Name cannot be empty");
+      setInvalidField("name");
+      toast.error("Check your details", "Name cannot be empty");
       return;
     }
 
     if (trimmedName.length < 2) {
-      setError("Name must be at least 2 characters");
+      setInvalidField("name");
+      toast.error("Check your details", "Name must be at least 2 characters");
       return;
     }
 
     if (trimmedName.length > 50) {
-      setError("Name must be 50 characters or less");
+      setInvalidField("name");
+      toast.error("Check your details", "Name must be 50 characters or less");
       return;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError("Please enter a valid email address");
+      setInvalidField("email");
+      toast.error("Check your details", "Please enter a valid email address");
       return;
     }
 
     try {
       setLoading(true);
-      setError("");
+      setInvalidField(null);
 
       const response = await api.put(
         "/api/auth/profile",
@@ -195,10 +203,18 @@ function Profile() {
       const data = response.data;
 
       dispatch(updateUser(data.user));
+      toast.success(
+        "Profile updated",
+        "Your profile was updated successfully.",
+      );
       setEditMode(false);
     } catch (error) {
       console.error("Profile update failed:", error);
-      setError("Something went wrong. Please try again.");
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data?.message ??
+          "Something went wrong. Please try again.")
+        : "Something went wrong. Please try again.";
+      toast.error("Update failed", message);
     } finally {
       setLoading(false);
     }
@@ -206,13 +222,12 @@ function Profile() {
 
   const handleImageUpload = async () => {
     if (!image) {
-      setError("Please select an image first");
+      toast.warning("No image selected", "Please select an image first");
       return;
     }
 
     try {
       setLoading(true);
-      setError("");
 
       const formData = new FormData();
 
@@ -234,9 +249,13 @@ function Profile() {
       );
 
       clearImageSelection();
+      toast.success("Image uploaded", "Profile image uploaded successfully.");
     } catch (error) {
       console.error("Image upload failed:", error);
-      setError("Image upload failed");
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data?.message ?? "Please try again.")
+        : "Please try again.";
+      toast.error("Image upload failed", message);
     } finally {
       setLoading(false);
     }
@@ -334,12 +353,14 @@ function Profile() {
                       if (!file) return;
 
                       if (!file.type.startsWith("image/")) {
-                        setError("Please select an image file");
+                        toast.error(
+                          "Invalid file",
+                          "Please select an image file",
+                        );
                         e.target.value = "";
                         return;
                       }
 
-                      setError("");
                       setImage(file);
                     }}
                   />
@@ -374,6 +395,7 @@ function Profile() {
                       </Label>
                       <Input
                         id="profile-name"
+                        aria-invalid={invalidField === "name"}
                         value={name}
                         required
                         minLength={2}
@@ -393,6 +415,7 @@ function Profile() {
                       </Label>
                       <Input
                         id="profile-email"
+                        aria-invalid={invalidField === "email"}
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -402,15 +425,6 @@ function Profile() {
                       />
                     </div>
                   </div>
-
-                  {error && (
-                    <p
-                      role="alert"
-                      className="w-full rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-left text-xs text-red-300"
-                    >
-                      {error}
-                    </p>
-                  )}
 
                   <div className="flex w-full gap-3">
                     <Button

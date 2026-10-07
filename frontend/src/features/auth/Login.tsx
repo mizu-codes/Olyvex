@@ -5,13 +5,14 @@ import { useAppDispatch, useAppSelector } from "../../app/hook";
 import { login, logout } from "./authSlice";
 import { Link, useNavigate } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 
 import logo from "@/assets/olyvex-logo.png";
 import { MagicCard } from "@/components/ui/magic-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/lib/toast";
 
 interface LoginResponse {
   message: string;
@@ -33,32 +34,42 @@ function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [invalidField, setInvalidField] = useState<"email" | "password" | null>(
+    null,
+  );
 
   const user = useAppSelector((state) => state.auth.user);
   const status = useAppSelector((state) => state.auth.status);
 
   const reduceMotion = useReducedMotion();
 
+  const showValidationError = (
+    field: "email" | "password",
+    message: string,
+  ) => {
+    setInvalidField(field);
+    toast.error("Check your details", message);
+  };
+
   const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    setError("");
+    setInvalidField(null);
 
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail) {
-      setError("Email is required");
+      showValidationError("email", "Email is required");
       return;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError("Please enter a valid email address");
+      showValidationError("email", "Please enter a valid email address");
       return;
     }
 
     if (!password) {
-      setError("Password is required");
+      showValidationError("password", "Password is required");
       return;
     }
 
@@ -79,15 +90,17 @@ function Login() {
         }),
       );
 
+      toast.success("Welcome back", `Signed in as ${data.user.name}.`);
+
       navigate("/", { replace: true });
 
       console.log("Login successful");
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        setError(error.response?.data?.message ?? "Something went wrong");
-      } else {
-        setError("Something went wrong");
-      }
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data?.message ?? "Something went wrong")
+        : "Something went wrong";
+
+      toast.error("Login failed", message);
     } finally {
       setLoading(false);
     }
@@ -150,8 +163,7 @@ function Login() {
                   required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  aria-invalid={!!error}
-                  aria-describedby={error ? "login-error" : undefined}
+                  aria-invalid={invalidField === "email"}
                   className="h-10 border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600"
                 />
               </div>
@@ -170,8 +182,7 @@ function Login() {
                     required
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    aria-invalid={!!error}
-                    aria-describedby={error ? "login-error" : undefined}
+                    aria-invalid={invalidField === "password"}
                     className="h-10 border-zinc-800 bg-zinc-950 pr-10 text-white placeholder:text-zinc-600"
                   />
                   <button
@@ -192,24 +203,6 @@ function Login() {
                 </div>
               </div>
             </div>
-
-            <AnimatePresence initial={false}>
-              {error && (
-                <motion.p
-                  id="login-error"
-                  role="alert"
-                  key="error"
-                  initial={reduceMotion ? false : { opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300"
-                >
-                  {error}
-                </motion.p>
-              )}
-            </AnimatePresence>
-
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Logging in..." : "Log in"}
             </Button>
