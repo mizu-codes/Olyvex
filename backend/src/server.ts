@@ -9,9 +9,14 @@ const app = express();
 
 const PORT = Number(process.env.PORT) || 5000;
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://mizu-olyvex.vercel.app",
+];
+
 app.use(
   cors({
-    origin: "https://mizu-olyvex.vercel.app",
+    origin: allowedOrigins,
     credentials: true,
   }),
 );
