@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/lib/toast";
 
+import { Spinner } from "@/components/ui/spinner";
+
 const GALAXY_FOCAL = [0.5, 0.5] as const;
 const GALAXY_ROTATION = [1.0, 0.0] as const;
 
@@ -380,7 +382,14 @@ function Profile() {
                         onClick={handleImageUpload}
                         disabled={loading || !image}
                       >
-                        {loading ? "Uploading..." : "Upload Image"}
+                        {loading ? (
+                          <>
+                            <Spinner className="size-4" />
+                            Uploading...
+                          </>
+                        ) : (
+                          "Upload Image"
+                        )}
                       </Button>
                     </div>
                   )}
@@ -436,7 +445,14 @@ function Profile() {
                       Cancel
                     </Button>
                     <Button type="submit" disabled={loading} className="flex-1">
-                      {loading ? "Saving..." : "Save"}
+                      {loading ? (
+                        <>
+                          <Spinner className="size-4" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save"
+                      )}
                     </Button>
                   </div>
                 </form>

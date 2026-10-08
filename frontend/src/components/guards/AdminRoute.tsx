@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from "react-router";
 import { useAppSelector } from "../../app/hook";
+import { Spinner } from "@/components/ui/spinner";
 
 function AdminRoute() {
   const status = useAppSelector((state) => state.adminAuth.status);
@@ -7,7 +8,11 @@ function AdminRoute() {
   const user = useAppSelector((state) => state.adminAuth.user);
 
   if (status === "checking") {
-    return <p>Checking admin session...</p>;
+    return (
+      <div className="flex min-h-dvh items-center justify-center">
+        <Spinner className="size-6" />
+      </div>
+    );
   }
 
   if (status === "unauthenticated") {

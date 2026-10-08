@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/lib/toast";
 
+import { Spinner } from "@/components/ui/spinner";
+
 function Register() {
   const navigate = useNavigate();
 
@@ -218,7 +220,14 @@ function Register() {
               </div>
             </div>
             <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Creating account..." : "Create account"}
+              {loading ? (
+                <>
+                  <Spinner className="size-4" />
+                  Creating account...
+                </>
+              ) : (
+                "Create account"
+              )}
             </Button>
 
             <p className="text-center text-xs text-zinc-400">

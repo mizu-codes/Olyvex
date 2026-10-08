@@ -1,11 +1,16 @@
 import { Navigate, Outlet } from "react-router";
 import { useAppSelector } from "../../app/hook";
+import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRoute() {
   const status = useAppSelector((state) => state.auth.status);
 
   if (status === "checking") {
-    return <p>Checking session...</p>;
+    return (
+      <div className="flex min-h-dvh items-center justify-center">
+        <Spinner className="size-6" />
+      </div>
+    );
   }
 
   if (status === "unauthenticated") {
