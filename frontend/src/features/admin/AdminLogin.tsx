@@ -5,13 +5,16 @@ import { loginAdmin } from "./adminAuthSlice";
 import { api } from "../../api/client";
 import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 
 import logo from "@/assets/olyvex-logo.png";
 import { AdminCard } from "@/components/ui/admin-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/lib/toast";
+
+import { Spinner } from "@/components/ui/spinner";
 
 interface AdminLoginResponse {
   message: string;
@@ -33,7 +36,6 @@ function AdminLogin() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const reduceMotion = useReducedMotion();
 
@@ -42,7 +44,6 @@ function AdminLogin() {
 
     try {
       setLoading(true);
-      setError("");
 
       const response = await api.post<AdminLoginResponse>("/api/admin/login", {
         email,
@@ -52,7 +53,7 @@ function AdminLogin() {
       const data = response.data;
 
       if (data.user.role !== "admin") {
-        setError("Admin access required");
+        toast.error("Access denied", "Admin access required");
         return;
       }
 
@@ -63,17 +64,23 @@ function AdminLogin() {
         }),
       );
 
+      toast.success(
+        "Welcome back",
+        "Signed in to the admin area successfully.",
+      );
+
       navigate("/admin/users", { replace: true });
     } catch (error) {
       console.error("Admin login failed:", error);
 
       if (axios.isAxiosError(error)) {
-        setError(
+        toast.error(
+          "Login failed",
           error.response?.data?.message ??
             "Something went wrong. Please try again.",
         );
       } else {
-        setError("Something went wrong. Please try again.");
+        toast.error("Login failed", "Something went wrong. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -130,8 +137,6 @@ function AdminLogin() {
                   placeholder="admin@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  aria-invalid={!!error}
-                  aria-describedby={error ? "admin-login-error" : undefined}
                   className="h-10 border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600"
                 />
               </div>
@@ -152,8 +157,6 @@ function AdminLogin() {
                     placeholder="Your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    aria-invalid={!!error}
-                    aria-describedby={error ? "admin-login-error" : undefined}
                     className="h-10 border-zinc-800 bg-zinc-950 pr-10 text-white placeholder:text-zinc-600"
                   />
                   <button
@@ -175,25 +178,15 @@ function AdminLogin() {
               </div>
             </div>
 
-            <AnimatePresence initial={false}>
-              {error && (
-                <motion.p
-                  id="admin-login-error"
-                  role="alert"
-                  key="error"
-                  initial={reduceMotion ? false : { opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300"
-                >
-                  {error}
-                </motion.p>
-              )}
-            </AnimatePresence>
-
             <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Logging in..." : "Login"}
+              {loading ? (
+                <>
+                  <Spinner className="size-4" />
+                  Logging in...
+                </>
+              ) : (
+                "Login"
+              )}
             </Button>
           </form>
         </AdminCard>

@@ -12,6 +12,8 @@ import { useAppSelector } from "../../app/hook";
 import AdminNavbar from "../../components/layout/AdminNavbar";
 import { api } from "../../api/client";
 
+import { Spinner } from "@/components/ui/spinner";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -551,6 +553,12 @@ function AdminUsers() {
                       : "transition-opacity"
                   }
                 >
+                  {loading && (
+                    <div className="flex items-center justify-center py-4">
+                      <Spinner className="size-6" />
+                    </div>
+                  )}
+
                   {/* Tablet / desktop */}
                   <div className="hidden md:block">
                     <Table>
@@ -715,7 +723,14 @@ function AdminUsers() {
                 Cancel
               </Button>
               <Button type="submit" disabled={creating}>
-                {creating ? "Creating..." : "Create User"}
+                {creating ? (
+                  <>
+                    <Spinner className="size-4" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create User"
+                )}
               </Button>
             </DialogFooter>
           </form>
@@ -789,7 +804,14 @@ function AdminUsers() {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={updating}>
-                  {updating ? "Saving..." : "Save"}
+                  {updating ? (
+                    <>
+                      <Spinner className="size-4" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save"
+                  )}
                 </Button>
               </DialogFooter>
             </form>
@@ -828,7 +850,14 @@ function AdminUsers() {
               onClick={handleDeleteUser}
               disabled={deleting}
             >
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? (
+                <>
+                  <Spinner className="size-4" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

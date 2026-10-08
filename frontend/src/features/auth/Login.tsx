@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/lib/toast";
 
+import { Spinner } from "@/components/ui/spinner";
+
 interface LoginResponse {
   message: string;
   token: string;
@@ -204,7 +206,14 @@ function Login() {
               </div>
             </div>
             <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Logging in..." : "Log in"}
+              {loading ? (
+                <>
+                  <Spinner className="size-4" />
+                  Logging in...
+                </>
+              ) : (
+                "Log in"
+              )}
             </Button>
 
             <p className="text-center text-xs text-zinc-400">
