@@ -7,6 +7,8 @@ import adminRoutes from "./routes/admin.routes.js";
 
 const app = express();
 
+const PORT = Number(process.env.PORT) || 5000;
+
 app.use(
   cors({
     origin: "https://mizu-olyvex.vercel.app",
@@ -26,6 +28,14 @@ app.get("/", (_req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRoutes);
 
-await connectDB();
+const startServer = async () => {
+  await connectDB();
+
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+};
+
+startServer();
 
 export default app;
