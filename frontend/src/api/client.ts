@@ -2,7 +2,7 @@ import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import type { AppDispatch, RootState } from "../app/store";
 
 export const api = axios.create({
-  baseURL: "http://localhost:5000",
+  baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true,
 });
 
