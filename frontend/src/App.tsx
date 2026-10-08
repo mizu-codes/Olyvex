@@ -1,17 +1,22 @@
+import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router";
-import Login from "./features/auth/Login";
-import Register from "./features/auth/Register";
-import Home from "./pages/Home";
+
 import ProtectedRoute from "./components/guards/ProtectedRoute";
 import PublicRoute from "./components/guards/PublicRoute";
-import { useEffect } from "react";
+import AdminRoute from "./components/guards/AdminRoute";
+
 import { useAppDispatch } from "./app/hook";
 import { restoreSession } from "./features/auth/authSlice";
 import { restoreAdminSession } from "./features/admin/adminAuthSlice";
-import Profile from "./features/profile/Profile";
-import AdminLogin from "./features/admin/AdminLogin";
-import AdminUsers from "./features/admin/AdminUsers";
-import AdminRoute from "./components/guards/AdminRoute";
+
+import { Spinner } from "@/components/ui/spinner";
+
+const Login = lazy(() => import("./features/auth/Login"));
+const Register = lazy(() => import("./features/auth/Register"));
+const Home = lazy(() => import("./pages/Home"));
+const Profile = lazy(() => import("./features/profile/Profile"));
+const AdminLogin = lazy(() => import("./features/admin/AdminLogin"));
+const AdminUsers = lazy(() => import("./features/admin/AdminUsers"));
 
 function App() {
   const dispatch = useAppDispatch();
@@ -22,25 +27,33 @@ function App() {
   }, [dispatch]);
 
   return (
-    <Routes>
-      <Route element={<PublicRoute />}>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-      </Route>
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center bg-[#09090B]">
+          <Spinner className="size-6" />
+        </div>
+      }
+    >
+      <Routes>
+        <Route element={<PublicRoute />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Route>
 
-      <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/profile" element={<Profile />} />
-      </Route>
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
 
-      <Route path="/admin/login" element={<AdminLogin />} />
+        <Route element={<AdminRoute />}>
+          <Route path="/admin/users" element={<AdminUsers />} />
+        </Route>
 
-      <Route element={<AdminRoute />}>
-        <Route path="/admin/users" element={<AdminUsers />} />
-      </Route>
-    </Routes>
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 
