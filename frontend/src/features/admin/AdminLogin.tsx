@@ -7,6 +7,10 @@ import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { loginSchema, type LoginFormValues } from "../auth/authSchemas";
+
 import logo from "@/assets/olyvex-logo.png";
 import { AdminCard } from "@/components/ui/admin-card";
 import { Button } from "@/components/ui/button";
@@ -32,22 +36,28 @@ function AdminLogin() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+    mode: "onTouched",
+  });
 
   const reduceMotion = useReducedMotion();
 
-  const handleSubmit = async (e: React.SubmitEvent) => {
-    e.preventDefault();
-
+  const onSubmit = async (values: LoginFormValues) => {
     try {
-      setLoading(true);
-
       const response = await api.post<AdminLoginResponse>("/api/admin/login", {
-        email,
-        password,
+        email: values.email,
+        password: values.password,
       });
 
       const data = response.data;
@@ -82,8 +92,6 @@ function AdminLogin() {
       } else {
         toast.error("Login failed", "Something went wrong. Please try again.");
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -109,7 +117,8 @@ function AdminLogin() {
       >
         <AdminCard>
           <form
-            onSubmit={handleSubmit}
+            onSubmit={handleSubmit(onSubmit)}
+            noValidate
             className="flex flex-col gap-5 p-6 sm:p-7"
           >
             <div className="flex flex-col gap-1.5">
@@ -131,14 +140,25 @@ function AdminLogin() {
                 </Label>
                 <Input
                   id="admin-email"
-                  name="email"
                   type="email"
                   autoComplete="email"
                   placeholder="admin@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  {...register("email")}
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={
+                    errors.email ? "admin-email-error" : undefined
+                  }
                   className="h-10 border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600"
                 />
+                {errors.email && (
+                  <p
+                    id="admin-email-error"
+                    className="text-xs text-rose-400"
+                    role="alert"
+                  >
+                    {errors.email.message}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">
@@ -151,12 +171,14 @@ function AdminLogin() {
                 <div className="relative">
                   <Input
                     id="admin-password"
-                    name="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     placeholder="Your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    {...register("password")}
+                    aria-invalid={Boolean(errors.password)}
+                    aria-describedby={
+                      errors.password ? "admin-password-error" : undefined
+                    }
                     className="h-10 border-zinc-800 bg-zinc-950 pr-10 text-white placeholder:text-zinc-600"
                   />
                   <button
@@ -175,11 +197,20 @@ function AdminLogin() {
                     )}
                   </button>
                 </div>
+                {errors.password && (
+                  <p
+                    id="admin-password-error"
+                    className="text-xs text-rose-400"
+                    role="alert"
+                  >
+                    {errors.password.message}
+                  </p>
+                )}
               </div>
             </div>
 
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? (
+            <Button type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting ? (
                 <>
                   <Spinner className="size-4" />
                   Logging in...

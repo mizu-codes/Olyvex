@@ -5,6 +5,10 @@ import { Link, useNavigate } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { registerSchema, type RegisterFormValues } from "./authSchemas";
+
 import logo from "@/assets/olyvex-logo.png";
 import { MagicCard } from "@/components/ui/magic-card";
 import { Button } from "@/components/ui/button";
@@ -17,81 +21,34 @@ import { Spinner } from "@/components/ui/spinner";
 function Register() {
   const navigate = useNavigate();
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
-  const [loading, setLoading] = useState(false);
-  const [invalidField, setInvalidField] = useState<
-    "name" | "email" | "password" | null
-  >(null);
 
   const reduceMotion = useReducedMotion();
 
-  const showValidationError = (
-    field: "name" | "email" | "password",
-    message: string,
-  ) => {
-    setInvalidField(field);
-    toast.error("Check your details", message);
-  };
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+    },
+    mode: "onTouched",
+  });
 
-  const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    setInvalidField(null);
-
-    const trimmedName = name.trim();
-    const trimmedEmail = email.trim();
-
-    if (!trimmedName) {
-      showValidationError("name", "Name is required");
-      return;
-    }
-
-    if (trimmedName.length < 2) {
-      showValidationError("name", "Name must be at least 2 characters");
-      return;
-    }
-
-    if (trimmedName.length > 50) {
-      showValidationError("name", "Name must be 50 characters or less");
-      return;
-    }
-
-    if (!trimmedEmail) {
-      showValidationError("email", "Email is required");
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      showValidationError("email", "Please enter a valid email address");
-      return;
-    }
-
-    if (!password) {
-      showValidationError("password", "Password is required");
-      return;
-    }
-
-    if (password.length < 8) {
-      showValidationError("password", "Password must be at least 8 characters");
-      return;
-    }
-
-    setLoading(true);
-
+  const onSubmit = async (values: RegisterFormValues) => {
     try {
       await api.post<{ message: string }>("/api/auth/register", {
-        name,
-        email,
-        password,
+        name: values.name,
+        email: values.email,
+        password: values.password,
       });
 
-      setName("");
-      setEmail("");
-      setPassword("");
+      reset();
 
       toast.success(
         "Account created",
@@ -105,8 +62,6 @@ function Register() {
         : "Something went wrong";
 
       toast.error("Registration failed", message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -132,7 +87,8 @@ function Register() {
       >
         <MagicCard>
           <form
-            onSubmit={handleSubmit}
+            onSubmit={handleSubmit(onSubmit)}
+            noValidate
             className="flex flex-col gap-5 p-6 sm:p-7"
           >
             <div className="flex flex-col gap-1.5">
@@ -151,18 +107,23 @@ function Register() {
                 </Label>
                 <Input
                   id="name"
-                  name="name"
                   type="text"
                   autoComplete="name"
                   placeholder="Your name"
-                  required
-                  minLength={2}
-                  maxLength={50}
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  aria-invalid={invalidField === "name"}
+                  {...register("name")}
+                  aria-invalid={Boolean(errors.name)}
+                  aria-describedby={errors.name ? "name-error" : undefined}
                   className="h-10 border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600"
                 />
+                {errors.name && (
+                  <p
+                    id="name-error"
+                    className="text-xs text-rose-400"
+                    role="alert"
+                  >
+                    {errors.name.message}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">
@@ -171,16 +132,24 @@ function Register() {
                 </Label>
                 <Input
                   id="email"
-                  name="email"
                   type="email"
                   autoComplete="email"
                   placeholder="you@example.com"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  aria-invalid={invalidField === "email"}
+                  {...register("email")}
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? "email-error" : undefined}
                   className="h-10 border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600"
                 />
+
+                {errors.email && (
+                  <p
+                    id="email-error"
+                    className="text-xs text-rose-400"
+                    role="alert"
+                  >
+                    {errors.email.message}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">
@@ -190,15 +159,14 @@ function Register() {
                 <div className="relative">
                   <Input
                     id="password"
-                    name="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="new-password"
                     placeholder="At least 8 characters"
-                    value={password}
-                    required
-                    minLength={8}
-                    onChange={(event) => setPassword(event.target.value)}
-                    aria-invalid={invalidField === "password"}
+                    {...register("password")}
+                    aria-invalid={Boolean(errors.password)}
+                    aria-describedby={
+                      errors.password ? "password-error" : undefined
+                    }
                     className="h-10 border-zinc-800 bg-zinc-950 pr-10 text-white placeholder:text-zinc-600"
                   />
                   <button
@@ -217,10 +185,20 @@ function Register() {
                     )}
                   </button>
                 </div>
+                {errors.password && (
+                  <p
+                    id="password-error"
+                    className="text-xs text-rose-400"
+                    role="alert"
+                  >
+                    {errors.password.message}
+                  </p>
+                )}
               </div>
             </div>
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? (
+
+            <Button type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting ? (
                 <>
                   <Spinner className="size-4" />
                   Creating account...
