@@ -7,6 +7,10 @@ import { Link, useNavigate } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { loginSchema, type LoginFormValues } from "./authSchemas";
+
 import logo from "@/assets/olyvex-logo.png";
 import { MagicCard } from "@/components/ui/magic-card";
 import { Button } from "@/components/ui/button";
@@ -32,55 +36,31 @@ function Login() {
 
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [invalidField, setInvalidField] = useState<"email" | "password" | null>(
-    null,
-  );
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+    mode: "onTouched",
+  });
 
   const user = useAppSelector((state) => state.auth.user);
   const status = useAppSelector((state) => state.auth.status);
 
   const reduceMotion = useReducedMotion();
 
-  const showValidationError = (
-    field: "email" | "password",
-    message: string,
-  ) => {
-    setInvalidField(field);
-    toast.error("Check your details", message);
-  };
-
-  const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    setInvalidField(null);
-
-    const trimmedEmail = email.trim();
-
-    if (!trimmedEmail) {
-      showValidationError("email", "Email is required");
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      showValidationError("email", "Please enter a valid email address");
-      return;
-    }
-
-    if (!password) {
-      showValidationError("password", "Password is required");
-      return;
-    }
-
-    setLoading(true);
-
+  const onSubmit = async (values: LoginFormValues) => {
     try {
       const response = await api.post<LoginResponse>("/api/auth/login", {
-        email: trimmedEmail,
-        password,
+        email: values.email,
+        password: values.password,
       });
 
       const data = response.data;
@@ -95,16 +75,12 @@ function Login() {
       toast.success("Welcome back", `Signed in as ${data.user.name}.`);
 
       navigate("/", { replace: true });
-
-      console.log("Login successful");
     } catch (error) {
       const message = axios.isAxiosError(error)
         ? (error.response?.data?.message ?? "Something went wrong")
         : "Something went wrong";
 
       toast.error("Login failed", message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -139,7 +115,8 @@ function Login() {
       >
         <MagicCard>
           <form
-            onSubmit={handleSubmit}
+            onSubmit={handleSubmit(onSubmit)}
+            noValidate
             className="flex flex-col gap-5 p-6 sm:p-7"
           >
             <div className="flex flex-col gap-1.5">
@@ -158,16 +135,23 @@ function Login() {
                 </Label>
                 <Input
                   id="email"
-                  name="email"
                   type="email"
                   autoComplete="email"
                   placeholder="you@example.com"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  aria-invalid={invalidField === "email"}
-                  className="h-10 border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600"
+                  {...register("email")}
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? "email-error" : undefined}
+                  className="h-10 border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600 aria-invalid:border-zinc-800 aria-invalid:ring-0"
                 />
+                {errors.email && (
+                  <p
+                    id="email-error"
+                    className="text-xs text-rose-400"
+                    role="alert"
+                  >
+                    {errors.email.message}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">
@@ -177,16 +161,17 @@ function Login() {
                 <div className="relative">
                   <Input
                     id="password"
-                    name="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     placeholder="Your password"
-                    required
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    aria-invalid={invalidField === "password"}
-                    className="h-10 border-zinc-800 bg-zinc-950 pr-10 text-white placeholder:text-zinc-600"
+                    {...register("password")}
+                    aria-invalid={Boolean(errors.password)}
+                    aria-describedby={
+                      errors.password ? "password-error" : undefined
+                    }
+                    className="h-10 border-zinc-800 bg-zinc-950 pr-10 text-white placeholder:text-zinc-600 aria-invalid:border-zinc-800 aria-invalid:ring-0"
                   />
+
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
@@ -203,10 +188,19 @@ function Login() {
                     )}
                   </button>
                 </div>
+                {errors.password && (
+                  <p
+                    id="password-error"
+                    className="text-xs text-rose-400"
+                    role="alert"
+                  >
+                    {errors.password.message}
+                  </p>
+                )}
               </div>
             </div>
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? (
+            <Button type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting ? (
                 <>
                   <Spinner className="size-4" />
                   Logging in...

@@ -6,11 +6,22 @@ import {
   PlusIcon,
   SearchIcon,
   Trash2Icon,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 import { useAppSelector } from "../../app/hook";
 import AdminNavbar from "../../components/layout/AdminNavbar";
 import { api } from "../../api/client";
+
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  createAdminUserSchema,
+  type CreateAdminUserFormValues,
+  updateAdminUserSchema,
+  type UpdateAdminUserFormValues,
+} from "./adminUserSchemas";
 
 import { Spinner } from "@/components/ui/spinner";
 
@@ -65,49 +76,6 @@ interface AdminUser {
   role: "user" | "admin";
   profileImage?: string | null;
   createdAt?: string;
-}
-
-type FormScope = "add" | "edit";
-type FormField = "name" | "email" | "password";
-
-interface InvalidField {
-  scope: FormScope;
-  field: FormField;
-  value: string;
-}
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function validateName(name: string) {
-  const trimmedName = name.trim();
-
-  if (!trimmedName) {
-    return "Name is required";
-  }
-
-  if (trimmedName.length < 2) {
-    return "Name must be at least 2 characters";
-  }
-
-  if (trimmedName.length > 50) {
-    return "Name must be 50 characters or less";
-  }
-
-  return "";
-}
-
-function validateEmail(email: string) {
-  const normalizedEmail = email.trim().toLowerCase();
-
-  if (!normalizedEmail) {
-    return "Email is required";
-  }
-
-  if (!emailRegex.test(normalizedEmail)) {
-    return "Enter a valid email address";
-  }
-
-  return "";
 }
 
 function useRetained<T>(value: T | null) {
@@ -228,25 +196,61 @@ function RowActions({
 function AdminUsers() {
   const token = useAppSelector((state) => state.adminAuth.token);
 
+  const {
+    register: registerAdd,
+    handleSubmit: handleAddSubmit,
+    reset: resetAdd,
+    control: addControl,
+    formState: { errors: addErrors, isSubmitting: isCreating },
+  } = useForm<CreateAdminUserFormValues>({
+    resolver: zodResolver(createAdminUserSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      role: "user",
+    },
+    mode: "onTouched",
+  });
+
+  const {
+    register: registerEdit,
+    handleSubmit: handleEditSubmit,
+    reset: resetEdit,
+    control: editControl,
+    formState: { errors: editErrors, isSubmitting: isUpdating },
+  } = useForm<UpdateAdminUserFormValues>({
+    resolver: zodResolver(updateAdminUserSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      role: "user",
+    },
+    mode: "onTouched",
+  });
+
+  const openEditUser = (user: AdminUser) => {
+    resetEdit({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    });
+
+    setEditingUser(user);
+  };
+
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [loadError, setLoadError] = useState("");
-  const [invalidField, setInvalidField] = useState<InvalidField | null>(null);
 
   const [search, setSearch] = useState("");
 
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"user" | "admin">("user");
-
-  const [creating, setCreating] = useState(false);
+  const [showAddPassword, setShowAddPassword] = useState(false);
 
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
-  const [updating, setUpdating] = useState(false);
 
   const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -289,51 +293,7 @@ function AdminUsers() {
     };
   }, [token, search]);
 
-  const showValidationError = (
-    scope: FormScope,
-    field: FormField,
-    value: string,
-    message: string,
-  ) => {
-    setInvalidField({ scope, field, value });
-    toast.error("Check your details", message);
-  };
-
-  const isInvalid = (scope: FormScope, field: FormField, value: string) =>
-    invalidField?.scope === scope &&
-    invalidField.field === field &&
-    invalidField.value === value;
-
-  const handleCreateUser = async (e: React.SubmitEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    const nameError = validateName(name);
-    if (nameError) {
-      showValidationError("add", "name", name, nameError);
-      return;
-    }
-
-    const emailError = validateEmail(email);
-    if (emailError) {
-      showValidationError("add", "email", email, emailError);
-      return;
-    }
-
-    if (!password) {
-      showValidationError("add", "password", password, "Password is required");
-      return;
-    }
-
-    if (password.length < 8) {
-      showValidationError(
-        "add",
-        "password",
-        password,
-        "Password must be at least 8 characters",
-      );
-      return;
-    }
-
+  const handleCreateUser = async (values: CreateAdminUserFormValues) => {
     if (!token) {
       toast.error(
         "Authentication required",
@@ -343,15 +303,13 @@ function AdminUsers() {
     }
 
     try {
-      setCreating(true);
-
       const response = await api.post<{ user: AdminUser }>(
         "/api/admin/users",
         {
-          name,
-          email,
-          password,
-          role,
+          name: values.name,
+          email: values.email,
+          password: values.password,
+          role: values.role,
         },
         {
           headers: {
@@ -364,55 +322,33 @@ function AdminUsers() {
 
       setUsers((prevUsers) => [data.user, ...prevUsers]);
 
-      setName("");
-      setEmail("");
-      setPassword("");
-      setRole("user");
+      resetAdd();
       setShowAddForm(false);
+
       toast.success("User created", "The new user was added successfully.");
     } catch (error) {
       console.error("Failed to create user:", error);
+
       const message = axios.isAxiosError(error)
         ? (error.response?.data?.message ?? "Could not create user")
         : "Could not create user";
+
       toast.error("Create failed", message);
-    } finally {
-      setCreating(false);
     }
   };
 
-  const handleUpdateUser = async (e: React.SubmitEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (!editingUser) {
-      return;
-    }
-
-    const nameError = validateName(editingUser.name);
-    if (nameError) {
-      showValidationError("edit", "name", editingUser.name, nameError);
-      return;
-    }
-
-    const emailError = validateEmail(editingUser.email);
-    if (emailError) {
-      showValidationError("edit", "email", editingUser.email, emailError);
-      return;
-    }
-
-    if (!token) {
+  const handleUpdateUser = async (values: UpdateAdminUserFormValues) => {
+    if (!editingUser || !token) {
       return;
     }
 
     try {
-      setUpdating(true);
-
       const response = await api.put<{ user: AdminUser }>(
         `/api/admin/users/${editingUser.id}`,
         {
-          name: editingUser.name,
-          email: editingUser.email,
-          role: editingUser.role,
+          name: values.name,
+          email: values.email,
+          role: values.role,
         },
         {
           headers: {
@@ -428,15 +364,16 @@ function AdminUsers() {
       );
 
       setEditingUser(null);
+
       toast.success("User updated", "The user was updated successfully.");
     } catch (error) {
       console.error("Failed to update user:", error);
+
       const message = axios.isAxiosError(error)
         ? (error.response?.data?.message ?? "Could not update user")
         : "Could not update user";
+
       toast.error("Update failed", message);
-    } finally {
-      setUpdating(false);
     }
   };
 
@@ -606,7 +543,7 @@ function AdminUsers() {
                             <TableCell className="px-4 py-3 text-right">
                               <RowActions
                                 user={user}
-                                onEdit={() => setEditingUser(user)}
+                                onEdit={() => openEditUser(user)}
                                 onDelete={() => setDeletingUser(user)}
                               />
                             </TableCell>
@@ -643,7 +580,7 @@ function AdminUsers() {
                         <RowActions
                           user={user}
                           className="size-10"
-                          onEdit={() => setEditingUser(user)}
+                          onEdit={() => openEditUser(user)}
                           onDelete={() => setDeletingUser(user)}
                         />
                       </li>
@@ -657,7 +594,13 @@ function AdminUsers() {
       </div>
 
       {/* Add user */}
-      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+      <Dialog
+        open={showAddForm}
+        onOpenChange={(open) => {
+          setShowAddForm(open);
+          if (!open) resetAdd();
+        }}
+      >
         <DialogContent className="max-h-[calc(100dvh-2rem)] gap-4 overflow-y-auto p-4 sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Add user</DialogTitle>
@@ -666,52 +609,122 @@ function AdminUsers() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreateUser} className="grid gap-4">
+          <form
+            onSubmit={handleAddSubmit(handleCreateUser)}
+            noValidate
+            className="grid gap-4"
+          >
             <div className="grid gap-2">
               <Label htmlFor="add-user-name">Name</Label>
+
               <Input
                 id="add-user-name"
-                aria-invalid={isInvalid("add", "name", name)}
                 type="text"
                 placeholder="Name"
-                required
-                minLength={2}
-                maxLength={50}
                 autoComplete="off"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                {...registerAdd("name")}
+                aria-invalid={Boolean(addErrors.name)}
+                aria-describedby={
+                  addErrors.name ? "add-user-name-error" : undefined
+                }
+                className="pr-10 aria-invalid:border-zinc-800 aria-invalid:ring-0 dark:aria-invalid:border-zinc-800 dark:aria-invalid:ring-0"
               />
+
+              {addErrors.name && (
+                <p
+                  id="add-user-name-error"
+                  className="text-xs text-rose-400"
+                  role="alert"
+                >
+                  {addErrors.name.message}
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="add-user-email">Email</Label>
+
               <Input
                 id="add-user-email"
-                aria-invalid={isInvalid("add", "email", email)}
                 type="email"
                 placeholder="Email"
-                required
                 autoComplete="off"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                {...registerAdd("email")}
+                aria-invalid={Boolean(addErrors.email)}
+                aria-describedby={
+                  addErrors.email ? "add-user-email-error" : undefined
+                }
+                className="pr-10 aria-invalid:border-zinc-800 aria-invalid:ring-0 dark:aria-invalid:border-zinc-800 dark:aria-invalid:ring-0"
               />
+
+              {addErrors.email && (
+                <p
+                  id="add-user-email-error"
+                  className="text-xs text-rose-400"
+                  role="alert"
+                >
+                  {addErrors.email.message}
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="add-user-password">Password</Label>
-              <Input
-                id="add-user-password"
-                aria-invalid={isInvalid("add", "password", password)}
-                type="password"
-                placeholder="Password"
-                required
-                minLength={8}
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+
+              <div className="relative">
+                <Input
+                  id="add-user-password"
+                  type={showAddPassword ? "text" : "password"}
+                  placeholder="Password"
+                  autoComplete="new-password"
+                  {...registerAdd("password")}
+                  aria-invalid={Boolean(addErrors.password)}
+                  aria-describedby={
+                    addErrors.password ? "add-user-password-error" : undefined
+                  }
+                  className="pr-10 aria-invalid:border-zinc-800 aria-invalid:ring-0 dark:aria-invalid:border-zinc-800 dark:aria-invalid:ring-0"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowAddPassword((prev) => !prev)}
+                  aria-label={
+                    showAddPassword ? "Hide password" : "Show password"
+                  }
+                  aria-pressed={showAddPassword}
+                  className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {showAddPassword ? (
+                    <EyeOff className="size-4" aria-hidden="true" />
+                  ) : (
+                    <Eye className="size-4" aria-hidden="true" />
+                  )}
+                </button>
+              </div>
+
+              {addErrors.password && (
+                <p
+                  id="add-user-password-error"
+                  className="text-xs text-rose-400"
+                  role="alert"
+                >
+                  {addErrors.password.message}
+                </p>
+              )}
             </div>
+
             <div className="grid gap-2">
               <Label htmlFor="add-user-role">Role</Label>
-              <RoleSelect id="add-user-role" value={role} onChange={setRole} />
+
+              <Controller
+                name="role"
+                control={addControl}
+                render={({ field }) => (
+                  <RoleSelect
+                    id="add-user-role"
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
             </div>
 
             <DialogFooter className="-mx-4 -mb-4 rounded-b-xl border-t bg-muted/50 p-4">
@@ -722,8 +735,9 @@ function AdminUsers() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={creating}>
-                {creating ? (
+
+              <Button type="submit" disabled={isCreating}>
+                {isCreating ? (
                   <>
                     <Spinner className="size-4" />
                     Creating...
@@ -753,45 +767,71 @@ function AdminUsers() {
           </DialogHeader>
 
           {editView && (
-            <form onSubmit={handleUpdateUser} className="grid gap-4">
+            <form
+              onSubmit={handleEditSubmit(handleUpdateUser)}
+              noValidate
+              className="grid gap-4"
+            >
               <div className="grid gap-2">
                 <Label htmlFor="edit-user-name">Name</Label>
+
                 <Input
                   id="edit-user-name"
-                  aria-invalid={isInvalid("edit", "name", editView.name)}
-                  required
-                  minLength={2}
-                  maxLength={50}
-                  value={editView.name}
-                  onChange={(e) =>
-                    editingUser &&
-                    setEditingUser({ ...editingUser, name: e.target.value })
+                  {...registerEdit("name")}
+                  aria-invalid={Boolean(editErrors.name)}
+                  aria-describedby={
+                    editErrors.name ? "edit-user-name-error" : undefined
                   }
+                  className="pr-10 aria-invalid:border-zinc-800 aria-invalid:ring-0 dark:aria-invalid:border-zinc-800 dark:aria-invalid:ring-0"
                 />
+
+                {editErrors.name && (
+                  <p
+                    id="edit-user-name-error"
+                    className="text-xs text-rose-400"
+                    role="alert"
+                  >
+                    {editErrors.name.message}
+                  </p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="edit-user-email">Email</Label>
+
                 <Input
                   id="edit-user-email"
-                  aria-invalid={isInvalid("edit", "email", editView.email)}
                   type="email"
-                  required
-                  value={editView.email}
-                  onChange={(e) =>
-                    editingUser &&
-                    setEditingUser({ ...editingUser, email: e.target.value })
+                  {...registerEdit("email")}
+                  aria-invalid={Boolean(editErrors.email)}
+                  aria-describedby={
+                    editErrors.email ? "edit-user-email-error" : undefined
                   }
+                  className="pr-10 aria-invalid:border-zinc-800 aria-invalid:ring-0 dark:aria-invalid:border-zinc-800 dark:aria-invalid:ring-0"
                 />
+
+                {editErrors.email && (
+                  <p
+                    id="edit-user-email-error"
+                    className="text-xs text-rose-400"
+                    role="alert"
+                  >
+                    {editErrors.email.message}
+                  </p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="edit-user-role">Role</Label>
-                <RoleSelect
-                  id="edit-user-role"
-                  value={editView.role}
-                  onChange={(nextRole) =>
-                    editingUser &&
-                    setEditingUser({ ...editingUser, role: nextRole })
-                  }
+
+                <Controller
+                  name="role"
+                  control={editControl}
+                  render={({ field }) => (
+                    <RoleSelect
+                      id="edit-user-role"
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  )}
                 />
               </div>
 
@@ -803,8 +843,9 @@ function AdminUsers() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={updating}>
-                  {updating ? (
+
+                <Button type="submit" disabled={isUpdating}>
+                  {isUpdating ? (
                     <>
                       <Spinner className="size-4" />
                       Saving...

@@ -8,6 +8,10 @@ import { updateUser } from "../auth/authSlice";
 import { api } from "../../api/client";
 import UserNavbar from "../../components/layout/UserNavbar";
 
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { profileSchema, type ProfileFormValues } from "../auth/authSchemas";
+
 import Galaxy from "@/components/effects/Galaxy";
 import { MagicCard } from "@/components/ui/magic-card";
 import { Button } from "@/components/ui/button";
@@ -99,18 +103,26 @@ function Profile() {
   const reduceMotion = useReducedMotion();
 
   const [editMode, setEditMode] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-
   const [loading, setLoading] = useState(false);
-  const [invalidField, setInvalidField] = useState<"name" | "email" | null>(
-    null,
-  );
 
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+    },
+    mode: "onTouched",
+  });
 
   useEffect(() => {
     if (!image) {
@@ -145,55 +157,32 @@ function Profile() {
   };
 
   const handleEdit = () => {
-    setName(user.name);
-    setEmail(user.email);
-    setInvalidField(null);
+    reset({
+      name: user.name,
+      email: user.email,
+    });
+
     setEditMode(true);
   };
 
   const handleCancel = () => {
     clearImageSelection();
-    setInvalidField(null);
+
+    reset({
+      name: user.name,
+      email: user.email,
+    });
+
     setEditMode(false);
   };
 
-  const handleSave = async () => {
-    const trimmedName = name.trim();
-    const trimmedEmail = email.trim();
-
-    if (!trimmedName) {
-      setInvalidField("name");
-      toast.error("Check your details", "Name cannot be empty");
-      return;
-    }
-
-    if (trimmedName.length < 2) {
-      setInvalidField("name");
-      toast.error("Check your details", "Name must be at least 2 characters");
-      return;
-    }
-
-    if (trimmedName.length > 50) {
-      setInvalidField("name");
-      toast.error("Check your details", "Name must be 50 characters or less");
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setInvalidField("email");
-      toast.error("Check your details", "Please enter a valid email address");
-      return;
-    }
-
+  const onSubmit = async (values: ProfileFormValues) => {
     try {
-      setLoading(true);
-      setInvalidField(null);
-
       const response = await api.put(
         "/api/auth/profile",
         {
-          name,
-          email,
+          name: values.name,
+          email: values.email,
         },
         {
           headers: {
@@ -205,20 +194,22 @@ function Profile() {
       const data = response.data;
 
       dispatch(updateUser(data.user));
+
       toast.success(
         "Profile updated",
         "Your profile was updated successfully.",
       );
+
       setEditMode(false);
     } catch (error) {
       console.error("Profile update failed:", error);
+
       const message = axios.isAxiosError(error)
         ? (error.response?.data?.message ??
           "Something went wrong. Please try again.")
         : "Something went wrong. Please try again.";
+
       toast.error("Update failed", message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -332,10 +323,8 @@ function Profile() {
             >
               {editMode ? (
                 <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void handleSave();
-                  }}
+                  onSubmit={handleSubmit(onSubmit)}
+                  noValidate
                   className="flex w-full flex-col items-center gap-5"
                 >
                   <ProfileAvatar
@@ -402,17 +391,27 @@ function Profile() {
                       >
                         Name
                       </Label>
+
                       <Input
                         id="profile-name"
-                        aria-invalid={invalidField === "name"}
-                        value={name}
-                        required
-                        minLength={2}
-                        maxLength={50}
-                        onChange={(e) => setName(e.target.value)}
+                        {...register("name")}
+                        aria-invalid={Boolean(errors.name)}
+                        aria-describedby={
+                          errors.name ? "profile-name-error" : undefined
+                        }
                         autoComplete="name"
-                        className="h-10 border-zinc-800 bg-zinc-950 text-white"
+                        className="h-10 border-zinc-800 bg-zinc-950 text-white aria-invalid:border-zinc-800 aria-invalid:ring-0"
                       />
+
+                      {errors.name && (
+                        <p
+                          id="profile-name-error"
+                          className="text-xs text-rose-400"
+                          role="alert"
+                        >
+                          {errors.name.message}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-2">
@@ -422,16 +421,28 @@ function Profile() {
                       >
                         Email
                       </Label>
+
                       <Input
                         id="profile-email"
-                        aria-invalid={invalidField === "email"}
                         type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        {...register("email")}
+                        aria-invalid={Boolean(errors.email)}
+                        aria-describedby={
+                          errors.email ? "profile-email-error" : undefined
+                        }
                         autoComplete="email"
-                        required
-                        className="h-10 border-zinc-800 bg-zinc-950 text-white"
+                        className="h-10 border-zinc-800 bg-zinc-950 text-white aria-invalid:border-zinc-800 aria-invalid:ring-0"
                       />
+
+                      {errors.email && (
+                        <p
+                          id="profile-email-error"
+                          className="text-xs text-rose-400"
+                          role="alert"
+                        >
+                          {errors.email.message}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -444,8 +455,13 @@ function Profile() {
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={loading} className="flex-1">
-                      {loading ? (
+
+                    <Button
+                      type="submit"
+                      disabled={loading || isSubmitting}
+                      className="flex-1"
+                    >
+                      {isSubmitting ? (
                         <>
                           <Spinner className="size-4" />
                           Saving...
