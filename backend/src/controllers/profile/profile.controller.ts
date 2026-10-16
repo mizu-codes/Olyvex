@@ -1,6 +1,7 @@
 import { User } from "../../models/User.js";
 import type { Request, Response } from "express";
 import cloudinary from "../../config/cloudinary.js";
+import { updateProfileSchema } from "../../schemas/profile.schema.js";
 
 export const getMe = async (req: Request, res: Response) => {
   try {
@@ -36,11 +37,6 @@ export const getMe = async (req: Request, res: Response) => {
   }
 };
 
-interface UpdateProfileRequestBody {
-  name?: string;
-  email?: string;
-}
-
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     if (!req.userId) {
@@ -49,13 +45,15 @@ export const updateProfile = async (req: Request, res: Response) => {
       });
     }
 
-    const { name, email } = req.body as UpdateProfileRequestBody;
+    const validation = updateProfileSchema.safeParse(req.body);
 
-    if (!name && !email) {
+    if (!validation.success) {
       return res.status(400).json({
-        message: "Nothing to update",
+        message: validation.error.issues[0]?.message ?? "Invalid profile data",
       });
     }
+
+    const { name, email } = validation.data;
 
     const user = await User.findById(req.userId);
 
@@ -66,46 +64,12 @@ export const updateProfile = async (req: Request, res: Response) => {
     }
 
     if (name !== undefined) {
-      const trimmedName = name.trim();
-
-      if (!trimmedName) {
-        return res.status(400).json({
-          message: "Name cannot be empty",
-        });
-      }
-
-      if (trimmedName.length < 2) {
-        return res.status(400).json({
-          message: "Name must be at least 2 characters",
-        });
-      }
-
-      if (trimmedName.length > 50) {
-        return res.status(400).json({
-          message: "Name must be 50 characters or less",
-        });
-      }
-
-      user.name = trimmedName;
+      user.name = name;
     }
 
     if (email !== undefined) {
-      const normalizedEmail = email.trim().toLowerCase();
-
-      if (!normalizedEmail) {
-        return res.status(400).json({
-          message: "Email cannot be empty",
-        });
-      }
-
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-        return res.status(400).json({
-          message: "Please enter a valid email address",
-        });
-      }
-
       const existingUser = await User.findOne({
-        email: normalizedEmail,
+        email,
         _id: { $ne: req.userId },
       });
 
@@ -115,7 +79,7 @@ export const updateProfile = async (req: Request, res: Response) => {
         });
       }
 
-      user.email = normalizedEmail;
+      user.email = email;
     }
 
     await user.save();
