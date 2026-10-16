@@ -1,28 +1,18 @@
 import type { Request, Response } from "express";
 import { User } from "../../models/User.js";
 import { comparePassword, hashPassword } from "../../utils/password.js";
-import { generateAccessToken, generateRefreshToken } from "../../utils/jwt.js";
 import cloudinary from "../../config/cloudinary.js";
 import { isValidObjectId } from "mongoose";
-import { verifyRefreshToken } from "../../utils/jwt.js";
-
-interface AdminLoginRequestBody {
-  email: string;
-  password: string;
-}
-
-interface CreateUserRequestBody {
-  name: string;
-  email: string;
-  password: string;
-  role?: "user" | "admin";
-}
-
-interface UpdateUserRequestBody {
-  name?: string;
-  email?: string;
-  role?: "user" | "admin";
-}
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from "../../utils/jwt.js";
+import { loginSchema } from "../../schemas/auth.schema.js";
+import {
+  createAdminUserSchema,
+  updateAdminUserSchema,
+} from "../../schemas/adminUser.schema.js";
 
 export const adminRefresh = async (req: Request, res: Response) => {
   try {
@@ -122,15 +112,15 @@ export const adminLogout = async (_req: Request, res: Response) => {
 
 export const adminLogin = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body as AdminLoginRequestBody;
+    const validation = loginSchema.safeParse(req.body);
 
-    if (!email || !password) {
+    if (!validation.success) {
       return res.status(400).json({
-        message: "Email and password are required",
+        message: validation.error.issues[0]?.message ?? "Invalid login data",
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const { email: normalizedEmail, password } = validation.data;
 
     const user = await User.findOne({
       email: normalizedEmail,
@@ -195,7 +185,18 @@ const escapeRegex = (value: string) => {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
 
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ALLOWED_PAGE_SIZES = [10, 20, 50] as const;
+const DEFAULT_PAGE_SIZE = 10;
+
+const parsePositiveInt = (value: unknown, fallback: number) => {
+  if (typeof value !== "string" || !/^\d+$/.test(value)) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
 
 export const getUsers = async (req: Request, res: Response) => {
   try {
@@ -206,6 +207,14 @@ export const getUsers = async (req: Request, res: Response) => {
     }
     const search =
       typeof req.query.search === "string" ? req.query.search.trim() : "";
+
+    const requestedLimit = parsePositiveInt(req.query.limit, DEFAULT_PAGE_SIZE);
+    const limit = (ALLOWED_PAGE_SIZES as readonly number[]).includes(
+      requestedLimit,
+    )
+      ? requestedLimit
+      : DEFAULT_PAGE_SIZE;
+    const requestedPage = parsePositiveInt(req.query.page, 1);
 
     const filter = search
       ? {
@@ -233,9 +242,15 @@ export const getUsers = async (req: Request, res: Response) => {
           _id: { $ne: req.userId },
         };
 
+    const total = await User.countDocuments(filter);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const page = Math.min(requestedPage, totalPages);
+
     const users = await User.find(filter)
       .select("-password -profileImagePublicId")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
 
     return res.status(200).json({
       users: users.map((user) => ({
@@ -246,6 +261,12 @@ export const getUsers = async (req: Request, res: Response) => {
         profileImage: user.profileImage,
         createdAt: user.createdAt,
       })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
     });
   } catch (error) {
     console.error("Get users error:", error);
@@ -258,63 +279,20 @@ export const getUsers = async (req: Request, res: Response) => {
 
 export const createUser = async (req: Request, res: Response) => {
   try {
+    const validation = createAdminUserSchema.safeParse(req.body);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        message: validation.error.issues[0]?.message ?? "Invalid user data",
+      });
+    }
+
     const {
-      name,
-      email,
+      name: trimmedName,
+      email: normalizedEmail,
       password,
       role = "user",
-    } = req.body as CreateUserRequestBody;
-
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        message: "Name, email and password are required",
-      });
-    }
-
-    const trimmedName = name.trim();
-    const normalizedEmail = email.trim().toLowerCase();
-
-    if (!trimmedName) {
-      return res.status(400).json({
-        message: "Name cannot be empty",
-      });
-    }
-
-    if (trimmedName.length < 2) {
-      return res.status(400).json({
-        message: "Name must be at least 2 characters",
-      });
-    }
-
-    if (trimmedName.length > 50) {
-      return res.status(400).json({
-        message: "Name must be 50 characters or less",
-      });
-    }
-
-    if (!normalizedEmail) {
-      return res.status(400).json({
-        message: "Email cannot be empty",
-      });
-    }
-
-    if (!emailRegex.test(normalizedEmail)) {
-      return res.status(400).json({
-        message: "Invalid email format",
-      });
-    }
-
-    if (password.length < 8) {
-      return res.status(400).json({
-        message: "Password must be at least 8 characters",
-      });
-    }
-
-    if (role !== "user" && role !== "admin") {
-      return res.status(400).json({
-        message: "Invalid role",
-      });
-    }
+    } = validation.data;
 
     const existingUser = await User.findOne({
       email: normalizedEmail,
@@ -357,10 +335,9 @@ export const createUser = async (req: Request, res: Response) => {
 
 export const updateUser = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const { name, email, role } = req.body as UpdateUserRequestBody;
+    const id = req.params.id;
 
-    if (!id) {
+    if (typeof id !== "string" || !id) {
       return res.status(400).json({
         message: "User ID is required",
       });
@@ -372,9 +349,19 @@ export const updateUser = async (req: Request, res: Response) => {
       });
     }
 
-    if (name === undefined && email === undefined && role === undefined) {
+    const validation = updateAdminUserSchema.safeParse(req.body);
+
+    if (!validation.success) {
       return res.status(400).json({
-        message: "Nothing to update",
+        message: validation.error.issues[0]?.message ?? "Invalid user data",
+      });
+    }
+
+    const { name, email, role } = validation.data;
+
+    if (id.toLowerCase() === req.userId?.toLowerCase() && role === "user") {
+      return res.status(403).json({
+        message: "You cannot change your own admin role",
       });
     }
 
@@ -387,46 +374,12 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 
     if (name !== undefined) {
-      const trimmedName = name.trim();
-
-      if (!trimmedName) {
-        return res.status(400).json({
-          message: "Name cannot be empty",
-        });
-      }
-
-      if (trimmedName.length < 2) {
-        return res.status(400).json({
-          message: "Name must be at least 2 characters",
-        });
-      }
-
-      if (trimmedName.length > 50) {
-        return res.status(400).json({
-          message: "Name must be 50 characters or less",
-        });
-      }
-
-      user.name = trimmedName;
+      user.name = name;
     }
 
     if (email !== undefined) {
-      const normalizedEmail = email.trim().toLowerCase();
-
-      if (!normalizedEmail) {
-        return res.status(400).json({
-          message: "Email cannot be empty",
-        });
-      }
-
-      if (!emailRegex.test(normalizedEmail)) {
-        return res.status(400).json({
-          message: "Invalid email format",
-        });
-      }
-
       const existingUser = await User.findOne({
-        email: normalizedEmail,
+        email,
         _id: { $ne: id },
       });
 
@@ -436,16 +389,10 @@ export const updateUser = async (req: Request, res: Response) => {
         });
       }
 
-      user.email = normalizedEmail;
+      user.email = email;
     }
 
     if (role !== undefined) {
-      if (role !== "user" && role !== "admin") {
-        return res.status(400).json({
-          message: "Invalid role",
-        });
-      }
-
       user.role = role;
     }
 
@@ -473,9 +420,9 @@ export const updateUser = async (req: Request, res: Response) => {
 
 export const deleteUser = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id;
 
-    if (!id) {
+    if (typeof id !== "string" || !id) {
       return res.status(400).json({
         message: "User ID is required",
       });
@@ -487,7 +434,7 @@ export const deleteUser = async (req: Request, res: Response) => {
       });
     }
 
-    if (id === req.userId) {
+    if (id.toLowerCase() === req.userId?.toLowerCase()) {
       return res.status(403).json({
         message: "You cannot delete your own account",
       });

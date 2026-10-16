@@ -38,6 +38,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -76,6 +85,47 @@ interface AdminUser {
   role: "user" | "admin";
   profileImage?: string | null;
   createdAt?: string;
+}
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+
+type PageItem = number | "ellipsis-start" | "ellipsis-end";
+
+function getPageItems(current: number, total: number): PageItem[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const pages = new Set<number>([1, total, current - 1, current, current + 1]);
+  const sorted = [...pages]
+    .filter((page) => page >= 1 && page <= total)
+    .sort((a, b) => a - b);
+
+  const items: PageItem[] = [];
+
+  sorted.forEach((page, index) => {
+    const previous = sorted[index - 1];
+
+    if (previous !== undefined) {
+      const gap = page - previous;
+
+      if (gap === 2) {
+        items.push(previous + 1);
+      } else if (gap > 2) {
+        items.push(previous === 1 ? "ellipsis-start" : "ellipsis-end");
+      }
+    }
+
+    items.push(page);
+  });
+
+  return items;
 }
 
 function useRetained<T>(value: T | null) {
@@ -127,6 +177,45 @@ function RoleSelect({
         strokeLinecap="round"
         strokeLinejoin="round"
         className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </div>
+  );
+}
+
+function PageSizeSelect({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: number;
+  onChange: (size: number) => void;
+}) {
+  return (
+    <div className="relative">
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="h-8 w-18 appearance-none rounded-md border border-input bg-transparent pr-7 pl-2.5 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-popover [&>option]:text-popover-foreground"
+      >
+        {PAGE_SIZE_OPTIONS.map((size) => (
+          <option key={size} value={size}>
+            {size}
+          </option>
+        ))}
+      </select>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-muted-foreground"
       >
         <path d="m6 9 6 6 6-6" />
       </svg>
@@ -240,11 +329,22 @@ function AdminUsers() {
   };
 
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [loadError, setLoadError] = useState("");
 
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: PAGE_SIZE_OPTIONS[0],
+    total: 0,
+    totalPages: 1,
+  });
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -257,41 +357,70 @@ function AdminUsers() {
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      const fetchUsers = async () => {
-        if (!token) {
-          setLoadError("Authentication required");
-          return;
-        }
-
-        try {
-          setLoading(true);
-          setLoadError("");
-
-          const response = await api.get<{ users: AdminUser[] }>(
-            `/api/admin/users?search=${encodeURIComponent(search)}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            },
-          );
-
-          setUsers(response.data.users);
-        } catch (error) {
-          console.error("Failed to fetch users:", error);
-          setLoadError("Could not load users");
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchUsers();
+      if (search !== debouncedSearch) {
+        setDebouncedSearch(search);
+        setPage(1);
+      }
     }, 300);
 
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [token, search]);
+  }, [search, debouncedSearch]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    let cancelled = false;
+
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        setLoadError("");
+
+        const params = new URLSearchParams({
+          search: debouncedSearch,
+          page: String(page),
+          limit: String(limit),
+        });
+
+        const response = await api.get<{
+          users: AdminUser[];
+          pagination: PaginationInfo;
+        }>(`/api/admin/users?${params.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (cancelled) return;
+
+        setUsers(response.data.users);
+        setPagination(response.data.pagination);
+
+        if (response.data.pagination.page !== page) {
+          setPage(response.data.pagination.page);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Failed to fetch users:", error);
+        setLoadError("Could not load users");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchUsers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, debouncedSearch, page, limit, reloadKey]);
+
+  const handlePageSizeChange = (size: number) => {
+    setLimit(size);
+    setPage(1);
+  };
 
   const handleCreateUser = async (values: CreateAdminUserFormValues) => {
     if (!token) {
@@ -303,7 +432,7 @@ function AdminUsers() {
     }
 
     try {
-      const response = await api.post<{ user: AdminUser }>(
+      await api.post(
         "/api/admin/users",
         {
           name: values.name,
@@ -318,12 +447,11 @@ function AdminUsers() {
         },
       );
 
-      const data = response.data;
-
-      setUsers((prevUsers) => [data.user, ...prevUsers]);
-
       resetAdd();
       setShowAddForm(false);
+      setShowAddPassword(false);
+      setPage(1);
+      setReloadKey((key) => key + 1);
 
       toast.success("User created", "The new user was added successfully.");
     } catch (error) {
@@ -343,7 +471,7 @@ function AdminUsers() {
     }
 
     try {
-      const response = await api.put<{ user: AdminUser }>(
+      await api.put(
         `/api/admin/users/${editingUser.id}`,
         {
           name: values.name,
@@ -357,13 +485,8 @@ function AdminUsers() {
         },
       );
 
-      const data = response.data;
-
-      setUsers((prevUsers) =>
-        prevUsers.map((user) => (user.id === data.user.id ? data.user : user)),
-      );
-
       setEditingUser(null);
+      setReloadKey((key) => key + 1);
 
       toast.success("User updated", "The user was updated successfully.");
     } catch (error) {
@@ -391,11 +514,8 @@ function AdminUsers() {
         },
       });
 
-      setUsers((prevUsers) =>
-        prevUsers.filter((user) => user.id !== deletingUser.id),
-      );
-
       setDeletingUser(null);
+      setReloadKey((key) => key + 1);
       toast.success("User deleted", "The user was deleted successfully.");
     } catch (error) {
       console.error("Failed to delete user:", error);
@@ -412,6 +532,25 @@ function AdminUsers() {
   const deleteView = useRetained(deletingUser);
 
   const dialogClass = "max-h-[calc(100dvh-2rem)] overflow-y-auto";
+
+  const rangeStart =
+    pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
+  const rangeEnd = Math.min(
+    pagination.page * pagination.limit,
+    pagination.total,
+  );
+  const canGoPrevious = pagination.page > 1 && !loading;
+  const canGoNext = pagination.page < pagination.totalPages && !loading;
+  const pageItems = getPageItems(pagination.page, pagination.totalPages);
+
+  const goToPage = (target: number) => {
+    if (target < 1 || target > pagination.totalPages || target === page) {
+      return;
+    }
+    setPage(target);
+  };
+
+  const displayedLoadError = token ? loadError : "Authentication required";
 
   return (
     <>
@@ -446,7 +585,7 @@ function AdminUsers() {
                   aria-live="polite"
                   className="text-xs whitespace-nowrap tabular-nums"
                 >
-                  {users.length} {users.length === 1 ? "user" : "users"}
+                  {pagination.total} {pagination.total === 1 ? "user" : "users"}
                 </span>
               </InputGroupAddon>
             </InputGroup>
@@ -461,16 +600,16 @@ function AdminUsers() {
             </Button>
           </div>
 
-          {loadError && (
+          {displayedLoadError && (
             <p
               role="alert"
               className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
             >
-              {loadError}
+              {displayedLoadError}
             </p>
           )}
 
-          {!loadError && (
+          {!displayedLoadError && (
             <section
               aria-busy={loading}
               className="mt-4 overflow-hidden rounded-xl border border-border bg-card"
@@ -479,7 +618,9 @@ function AdminUsers() {
                 <div className="px-4 py-16 text-center">
                   <p className="text-sm font-medium">No users found</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Try a different search or add a new user.
+                    {debouncedSearch
+                      ? "Try a different search or add a new user."
+                      : "Add a new user to get started."}
                   </p>
                 </div>
               ) : (
@@ -588,6 +729,101 @@ function AdminUsers() {
                   </ul>
                 </div>
               )}
+
+              {pagination.total > 0 && (
+                <div className="flex flex-col gap-3 border-t border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 md:justify-start">
+                    <p
+                      aria-live="polite"
+                      className="text-sm whitespace-nowrap text-muted-foreground tabular-nums"
+                    >
+                      Showing {rangeStart}–{rangeEnd} of {pagination.total}{" "}
+                      {pagination.total === 1 ? "user" : "users"}
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                      <Label
+                        htmlFor="users-per-page"
+                        className="text-sm font-normal whitespace-nowrap text-muted-foreground"
+                      >
+                        Rows per page
+                      </Label>
+                      <PageSizeSelect
+                        id="users-per-page"
+                        value={limit}
+                        onChange={handlePageSizeChange}
+                      />
+                    </div>
+                  </div>
+
+                  {pagination.totalPages > 1 && (
+                    <Pagination className="mx-0 w-auto justify-center md:justify-end">
+                      <PaginationContent className="flex-wrap justify-center">
+                        <PaginationItem>
+                          <PaginationPrevious
+                            href="#"
+                            aria-disabled={!canGoPrevious}
+                            tabIndex={canGoPrevious ? undefined : -1}
+                            className={
+                              canGoPrevious
+                                ? undefined
+                                : "pointer-events-none opacity-50"
+                            }
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (canGoPrevious) goToPage(pagination.page - 1);
+                            }}
+                          />
+                        </PaginationItem>
+
+                        {pageItems.map((item) =>
+                          typeof item === "number" ? (
+                            <PaginationItem key={item}>
+                              <PaginationLink
+                                href="#"
+                                isActive={item === pagination.page}
+                                aria-label={`Page ${item}`}
+                                className={
+                                  item === pagination.page
+                                    ? "border-[#9E7AFF]/30 bg-[#9E7AFF]/10 text-[#c9b8ff] hover:bg-[#9E7AFF]/20 hover:text-white"
+                                    : undefined
+                                }
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  goToPage(item);
+                                }}
+                              >
+                                {item}
+                              </PaginationLink>
+                            </PaginationItem>
+                          ) : (
+                            <PaginationItem key={item}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          ),
+                        )}
+
+                        <PaginationItem>
+                          <PaginationNext
+                            href="#"
+                            aria-disabled={!canGoNext}
+                            tabIndex={canGoNext ? undefined : -1}
+                            className={
+                              canGoNext
+                                ? undefined
+                                : "pointer-events-none opacity-50"
+                            }
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (canGoNext) goToPage(pagination.page + 1);
+                            }}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  )}
+                </div>
+              )}
             </section>
           )}
         </main>
@@ -598,7 +834,11 @@ function AdminUsers() {
         open={showAddForm}
         onOpenChange={(open) => {
           setShowAddForm(open);
-          if (!open) resetAdd();
+
+          if (!open) {
+            resetAdd();
+            setShowAddPassword(false);
+          }
         }}
       >
         <DialogContent className="max-h-[calc(100dvh-2rem)] gap-4 overflow-y-auto p-4 sm:max-w-sm">
@@ -731,7 +971,11 @@ function AdminUsers() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setShowAddForm(false)}
+                onClick={() => {
+                  resetAdd();
+                  setShowAddPassword(false);
+                  setShowAddForm(false);
+                }}
               >
                 Cancel
               </Button>
@@ -884,11 +1128,16 @@ function AdminUsers() {
           </AlertDialogHeader>
 
           <AlertDialogFooter>
-            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <AlertDialogCancel type="button" disabled={deleting}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               type="button"
               variant="destructive"
-              onClick={handleDeleteUser}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteUser();
+              }}
               disabled={deleting}
             >
               {deleting ? (

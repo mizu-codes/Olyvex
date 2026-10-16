@@ -8,9 +8,9 @@ import {
 import {
   getMe,
   updateProfile,
+  uploadProfileImage,
 } from "../controllers/profile/profile.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
-import { uploadProfileImage } from "../controllers/profile/profile.controller.js";
 import { upload } from "../middleware/upload.middleware.js";
 
 const router = Router();

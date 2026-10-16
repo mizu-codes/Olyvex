@@ -5,8 +5,8 @@ interface IUser {
   email: string;
   password: string;
   role: "user" | "admin";
-  profileImage?: string;
-  profileImagePublicId?: string;
+  profileImage?: string | null;
+  profileImagePublicId?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
