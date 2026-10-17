@@ -14,7 +14,7 @@
 
 <br/><br/>
 
-[![Live Demo](https://img.shields.io/badge/🌐_LIVE_DEMO-2563EB?style=for-the-badge)](mizu-olyvex.vercel.app)
+[![Live Demo](https://img.shields.io/badge/🌐_LIVE_DEMO-2563EB?style=for-the-badge)](https://mizu-olyvex.vercel.app/)
 
 </div>
 
