@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from "react-router";
 import ProtectedRoute from "./components/guards/ProtectedRoute";
 import PublicRoute from "./components/guards/PublicRoute";
 import AdminRoute from "./components/guards/AdminRoute";
+import AdminPublicRoute from "./components/guards/AdminPublicRoute";
 
 import { useAppDispatch } from "./app/hook";
 import { restoreSession } from "./features/auth/authSlice";
@@ -45,7 +46,9 @@ function App() {
           <Route path="/profile" element={<Profile />} />
         </Route>
 
-        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route element={<AdminPublicRoute />}>
+          <Route path="/admin/login" element={<AdminLogin />} />
+        </Route>
 
         <Route element={<AdminRoute />}>
           <Route path="/admin/users" element={<AdminUsers />} />
